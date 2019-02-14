@@ -13,3 +13,7 @@ test:
 testStream:
 	make w
 	cat "tests/data/lemstrom2011/query_a.mid.vectors" | patternfinder/geometric_helsinki/_w --stream "tests/data/lemstrom2011/leiermann.xml.vectors"
+
+clean:
+	rm *.o *.a
+	rm algorithm-w2
