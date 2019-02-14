@@ -1,9 +1,9 @@
 w: 
 	git submodule update --init --recursive
-	gcc algorithm-w2.c c-generic-pqueue/pqueue.c -I -g -o algorithm-w2
+	gcc w2/algorithm-w2.c c-generic-pqueue/pqueue.c -I -g -o w2/algorithm-w2
 
 w-python:
-	swig -python -o _w2_module.cc algorithm-w2.i
+	swig -python -o w2/_w2_module.cc w2/algorithm-w2.i
 	python setup.py build_ext --inplace
 
 testgdb:
