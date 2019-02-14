@@ -1,6 +1,3 @@
-w: 
-	gcc smr_search/_w.c smr_search/c_pqueue/pqueue.c -I -g -o smr_search/_w
-
 wpp:
 	gcc patternfinder/geometric_helsinki/_w.cpp patternfinder/geometric_helsinki/nlohmann/json.hpp -lstdc++ -std=c++11 -g -I patternfinder/geometric_helsinki/ -o patternfinder/geometric_helsinki/_wcpp -pg
 
