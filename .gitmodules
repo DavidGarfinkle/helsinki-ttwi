@@ -1,0 +1,3 @@
+[submodule "c-generic-pqueue"]
+	path = c-generic-pqueue
+	url = https://github.com/nomemory/c-generic-pqueue
