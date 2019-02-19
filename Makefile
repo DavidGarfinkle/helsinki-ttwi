@@ -21,7 +21,9 @@ debug-mac:
 
 test:
 	make w
-	patternfinder/geometric_helsinki/_w "tests/data/lemstrom2011/query_a.mid.vectors" "tests/data/lemstrom2011/leiermann.xml.vectors" "c_test/lemstrom.res"
+	w2/w2 "tests/query_a.vectors" "tests/leiermann.vectors" "tests/lemstrom.res"
+	cat tests/lemstrom.res
+	rm w2/w2
 
 testStream:
 	make w

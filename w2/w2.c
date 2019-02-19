@@ -156,10 +156,10 @@ int compare_K_entries_startIndex(const void* x, const void* y){
     struct KEntry left = *((struct KEntry*) x);
     struct KEntry right = *((struct KEntry*) y);
     if (left.targetVec.startIndex == right.targetVec.startIndex) {
-        return left.targetVec.endIndex > right.targetVec.endIndex;
+        return left.targetVec.endIndex - right.targetVec.endIndex;
     }
     else {
-        return left.targetVec.startIndex > right.targetVec.startIndex;
+        return left.targetVec.startIndex - right.targetVec.startIndex;
     }
 }
 int compare_K_entries_endIndex(const void* x, const void* y){
