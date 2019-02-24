@@ -96,8 +96,8 @@ except __builtin__.Exception:
     _newclass = 0
 
 
-def search(patternStream, targetStream, outputStream):
-    return _w2.search(patternStream, targetStream, outputStream)
+def search(patternStream, targetStream):
+    return _w2.search(patternStream, targetStream)
 search = _w2.search
 # This file is compatible with both classic and new-style classes.
 
