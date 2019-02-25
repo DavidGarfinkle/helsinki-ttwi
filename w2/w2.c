@@ -5,7 +5,7 @@
 
 #include "c_pqueue/pqueue.h"
 
-#define DEBUG_W
+//#define DEBUG_W
 
 int max(int a, int b){
     return (a > b) ? a : b;
