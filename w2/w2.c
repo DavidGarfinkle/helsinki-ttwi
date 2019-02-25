@@ -5,7 +5,7 @@
 
 #include "c_pqueue/pqueue.h"
 
-//#define DEBUG_W
+#define DEBUG_W
 
 int max(int a, int b){
     return (a > b) ? a : b;
@@ -134,7 +134,7 @@ int extract_chains(struct KEntry** KTables, struct Score* pattern, struct Score*
             continue;
         }
 
-        int chain[pattern->num_notes];
+        int* chain = calloc(pattern->num_notes, sizeof(int));
 
         #ifdef DEBUG_W
             printf("extracting chain %d\n", num_occs);
@@ -151,6 +151,14 @@ int extract_chains(struct KEntry** KTables, struct Score* pattern, struct Score*
         #endif
 
         chains[num_occs] = chain;
+
+        #ifdef DEBUG_W
+            printf("    chains[i]: ");
+            for (int j = 0; j < pattern->num_notes; j++){
+                printf("%d, ", chains[num_occs][j]);
+            }
+            printf("\n");
+        #endif
         num_occs++;
     }
 
@@ -371,9 +379,18 @@ void search_return_chains(char* patternString, char* targetString, struct Result
         printf("chain analysis\n");
     #endif
 
-    int** chains = malloc(sizeof(int*) * target->num_notes);
-    res->num_occs = extract_chains(KTables, pattern, target, chains);
-    res->chains = chains;
+    res->chains = calloc(target->num_notes, sizeof(int*));
+    res->num_occs = extract_chains(KTables, pattern, target, res->chains);
+
+    #ifdef DEBUG_W
+        for (int i=0; i < res->num_occs; i++) {
+            printf("    res->chains[%d]: ", i);
+            for (int j = 0; j < pattern->num_notes; j++){
+                printf("%d, ", res->chains[i][j]);
+            }
+            printf("\n");
+        }
+    #endif
 }
 
 char* search(char* patternString, char* targetString){
