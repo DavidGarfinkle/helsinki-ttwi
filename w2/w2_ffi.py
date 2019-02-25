@@ -8,8 +8,13 @@ cur_dir = os.path.abspath(os.path.join(__file__, os.path.pardir))
 # globals needed to use the shared object. It must be in valid C syntax.
 ffibuilder.cdef("""
     char* search(char* patternString, char* targetString);
+    void search_return_chains(char* patternString, char* targetString, struct Result* res);
 
 
+     struct Result {
+          int** chains;
+          int num_occs;
+     };
 
      /**
      * Priority Queue Structure

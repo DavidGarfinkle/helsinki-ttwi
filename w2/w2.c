@@ -5,7 +5,7 @@
 
 #include "c_pqueue/pqueue.h"
 
-//#define DEBUG_W
+#define DEBUG_W
 
 int max(int a, int b){
     return (a > b) ? a : b;
@@ -40,6 +40,18 @@ struct KEntry {
     int e;
     struct KEntry* y; // backlink for building chains
 };
+
+void print_K_table(struct KEntry* KTable, int length){
+    for (int i=0; i < length; i ++){
+        printf("KEntry %d; y %d; tStart %d; tEnd %d; pStart %d; pEnd %d; w %d; ", i, KTable[i].targetVec.y, KTable[i].targetVec.startIndex, KTable[i].targetVec.endIndex, KTable[i].patternVec.startIndex, KTable[i].patternVec.endIndex, KTable[i].w);
+        if (KTable[i].w > 1 && KTable[i].y != NULL) {
+            printf("y-endindex %d\n", KTable[i].w, KTable[i].y->targetVec.endIndex);
+        } else {
+            printf("\n");
+        }
+    }
+}
+
 
 struct Score* load_indexed_score(FILE* data){
     char line[1024];
@@ -91,7 +103,7 @@ void extract_chain(struct KEntry row, int* chain, int* maxTargetWindow, int* tra
         *diatonicOcc = 1;
     }
 
-    if (row.y == 0x0) {
+    if (row.y == NULL) {
         chain[0] = row.targetVec.startIndex;
         chain[1] = row.targetVec.endIndex;
 
@@ -102,6 +114,47 @@ void extract_chain(struct KEntry row, int* chain, int* maxTargetWindow, int* tra
         // Recurse on the backlink
         extract_chain(*(row.y), chain, maxTargetWindow, transposition, diatonicOcc);
     }
+}
+
+int extract_chains(struct KEntry** KTables, struct Score* pattern, struct Score* target, int** chains){
+    int num_occs = 0;
+
+    #ifdef DEBUG_W
+        printf("extract chains--- final ktable:\n");
+        print_K_table(KTables[pattern->num_notes - 2], target->num_vectors);
+    #endif
+
+    for (int i=0; i < target->num_vectors; i++){
+        int transposition = 0;
+        int maxTargetWindow = 0;
+        int diatonicOcc = 0;
+
+        // Full occurrence will be m - 1 vectors, indexed at 0 ==> check for m - 2
+        if (KTables[pattern->num_notes - 2][i].w != pattern->num_notes - 2) {
+            continue;
+        }
+
+        int chain[pattern->num_notes];
+
+        #ifdef DEBUG_W
+            printf("extracting chain %d\n", num_occs);
+        #endif
+
+        extract_chain(KTables[pattern->num_notes - 2][i], chain, &maxTargetWindow, &transposition, &diatonicOcc);
+
+        #ifdef DEBUG_W
+            printf("    chain %d: ", num_occs);
+            for (int j = 0; j < pattern->num_notes; j++){
+                printf("%d, ", chain[j]);
+            }
+            printf("\n");
+        #endif
+
+        chains[num_occs] = chain;
+        num_occs++;
+    }
+
+    return num_occs;
 }
 
 void write_chains_to_json(struct KEntry** KTables, struct Score* pattern, struct Score* target, FILE* output) {
@@ -181,7 +234,8 @@ struct KEntry** init_K_tables(struct Score* pattern, struct Score* target){
 
     // For now, allocate the max possible size of any K table
     for (int i=0; i < pattern->num_notes - 1; i++) {
-        KTables[i] = (struct KEntry *) malloc(target->num_vectors * sizeof(struct KEntry));
+        KTables[i] = (struct KEntry *) calloc(target->num_vectors, sizeof(struct KEntry));
+        //KTables[i] = (struct KEntry *) malloc(target->num_vectors * sizeof(struct KEntry));
 
         // For W1 only. Filter out for the single pattern vec which goes from i to i + 1
         struct IntraVector curPatternVec;
@@ -201,18 +255,13 @@ struct KEntry** init_K_tables(struct Score* pattern, struct Score* target){
                 KTables[i][numMatching].targetVec = target->vectors[j];
                 KTables[i][numMatching].patternVec = curPatternVec;
                 KTables[i][numMatching].y = NULL;
+                //KTables[i][numMatching].w = 1;
                 numMatching++;
             }
         }
         qsort(KTables[i], numMatching, sizeof(struct KEntry), compare_K_entries_startIndex);
     }
     return KTables;
-}
-
-void print_K_table(struct KEntry* KTable, int length){
-    for (int i=0; i < length; i ++){
-        printf("KEntry %d; y %d; tStart %d; tEnd %d; pStart %d; pEnd %d;\n", i, KTable[i].targetVec.y, KTable[i].targetVec.startIndex, KTable[i].targetVec.endIndex, KTable[i].patternVec.startIndex, KTable[i].patternVec.endIndex);
-    }
 }
 
 void print_queue(PQueue* queue){
@@ -275,6 +324,58 @@ void algorithm(struct KEntry** KTables, struct Score* pattern, struct Score* tar
     }
 }
 
+struct Result {
+    int** chains;
+    int num_occs;
+};
+
+void search_return_chains(char* patternString, char* targetString, struct Result* res){
+    //struct Result* res = (struct Result*) malloc(sizeof(struct Result));
+
+    // PARSE INDEXED SCORES
+    FILE* targetStream = fmemopen(targetString, strlen(targetString), "r");
+    struct Score *target = load_indexed_score(targetStream); 
+    #ifdef DEBUG_W
+        printScore(target);
+    #endif
+
+    FILE* patternStream = fmemopen(patternString, strlen(patternString), "r");
+    struct Score *pattern = load_indexed_score(patternStream); 
+    #ifdef DEBUG_W
+        printf("Pattern Score \n");
+        printScore(pattern);
+    #endif
+
+    // Initialize K tables
+    #ifdef DEBUG_W
+        printf("init ktables\n");
+    #endif
+
+    struct KEntry** KTables = init_K_tables(pattern, target);
+    #ifdef DEBUG_W
+        for (int i=0; i < pattern->num_notes - 1; i++){
+            printf("\n\nprinting Ktable %d\n", i);
+            print_K_table(KTables[i], 30);
+        }
+    #endif
+     
+    
+    // Start W line sweeping
+    #ifdef DEBUG_W
+        printf("Starting algorithm...\n");
+    #endif
+
+    algorithm(KTables, pattern, target);
+
+    #ifdef DEBUG_W
+        printf("chain analysis\n");
+    #endif
+
+    int** chains = malloc(sizeof(int*) * target->num_notes);
+    res->num_occs = extract_chains(KTables, pattern, target, chains);
+    res->chains = chains;
+}
+
 char* search(char* patternString, char* targetString){
     // PARSE INDEXED SCORES
     FILE* targetStream = fmemopen(targetString, strlen(targetString), "r");
@@ -298,7 +399,7 @@ char* search(char* patternString, char* targetString){
     struct KEntry** KTables = init_K_tables(pattern, target);
     #ifdef DEBUG_W
         for (int i=0; i < pattern->num_notes - 1; i++){
-            printf("printing Ktable %d", i);
+            printf("\n\nprinting Ktable %d\n", i);
             print_K_table(KTables[i], 30);
         }
     #endif
@@ -370,7 +471,7 @@ int main(int argc, char **argv) {
     struct KEntry** KTables = init_K_tables(pattern, target);
     #ifdef DEBUG_W
         for (int i=0; i < pattern->num_notes - 1; i++){
-            printf("printing Ktable %d", i);
+            printf("\n\nprinting Ktable %d\n", i);
             print_K_table(KTables[i], 30);
         }
     #endif
