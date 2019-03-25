@@ -5,7 +5,7 @@
 
 #include "c_pqueue/pqueue.h"
 
-//#define DEBUG_W
+#define DEBUG_W
 
 int max(int a, int b){
     return (a > b) ? a : b;
@@ -52,7 +52,6 @@ void print_K_table(struct KEntry* KTable, int length){
     }
 }
 
-
 struct Score* load_indexed_score(FILE* data){
     char line[1024];
     struct Score* score = (struct Score*) malloc(sizeof(struct Score));
@@ -84,7 +83,13 @@ struct Score* load_indexed_score(FILE* data){
         score->vectors[i].diatonicDiff = atoi(strtok(NULL, ",")); 
         score->vectors[i].chromaticDiff = atoi(strtok(NULL, ",")); 
     }
+
     return score;
+}
+
+struct Score* init_score(char* data) {
+    FILE* stream = fmemopen(data, strlen(data), "r");
+    return load_indexed_score(stream);
 }
 
 void printScore(struct Score* score){
@@ -120,8 +125,8 @@ int extract_chains(struct KEntry** KTables, struct Score* pattern, struct Score*
     int num_occs = 0;
 
     #ifdef DEBUG_W
-        printf("extract chains--- final ktable:\n");
-        print_K_table(KTables[pattern->num_notes - 2], target->num_vectors);
+        //printf("extract chains--- final ktable:\n");
+        //print_K_table(KTables[pattern->num_notes - 2], target->num_vectors);
     #endif
 
     for (int i=0; i < target->num_vectors; i++){
@@ -137,27 +142,27 @@ int extract_chains(struct KEntry** KTables, struct Score* pattern, struct Score*
         int* chain = calloc(pattern->num_notes, sizeof(int));
 
         #ifdef DEBUG_W
-            printf("extracting chain %d\n", num_occs);
+            //printf("extracting chain %d\n", num_occs);
         #endif
 
         extract_chain(KTables[pattern->num_notes - 2][i], chain, &maxTargetWindow, &transposition, &diatonicOcc);
 
         #ifdef DEBUG_W
-            printf("    chain %d: ", num_occs);
+            //printf("    chain %d: ", num_occs);
             for (int j = 0; j < pattern->num_notes; j++){
-                printf("%d, ", chain[j]);
+                //printf("%d, ", chain[j]);
             }
-            printf("\n");
+            //printf("\n");
         #endif
 
         chains[num_occs] = chain;
 
         #ifdef DEBUG_W
-            printf("    chains[i]: ");
+            //printf("    chains[i]: ");
             for (int j = 0; j < pattern->num_notes; j++){
-                printf("%d, ", chains[num_occs][j]);
+                //printf("%d, ", chains[num_occs][j]);
             }
-            printf("\n");
+            //printf("\n");
         #endif
         num_occs++;
     }
@@ -330,40 +335,42 @@ void algorithm(struct KEntry** KTables, struct Score* pattern, struct Score* tar
         KTables[i][target->num_vectors-1].e = 1;
         pqueue_enqueue(Queues[i+1], &KTables[i][target->num_vectors-1]);
     }
+
 }
 
 struct Result {
     int** chains;
     int num_occs;
+    struct KEntry* table;
 };
 
-void search_return_chains(char* patternString, char* targetString, struct Result* res){
+void search_return_chains(struct Score* pattern, struct Score* target, struct Result* res){
     //struct Result* res = (struct Result*) malloc(sizeof(struct Result));
 
     // PARSE INDEXED SCORES
-    FILE* targetStream = fmemopen(targetString, strlen(targetString), "r");
-    struct Score *target = load_indexed_score(targetStream); 
+    //FILE* targetStream = fmemopen(targetString, strlen(targetString), "r");
+    //struct Score *target = load_indexed_score(targetStream); 
     #ifdef DEBUG_W
-        printScore(target);
+        //printScore(target);
     #endif
 
-    FILE* patternStream = fmemopen(patternString, strlen(patternString), "r");
-    struct Score *pattern = load_indexed_score(patternStream); 
+    //FILE* patternStream = fmemopen(patternString, strlen(patternString), "r");
+    //struct Score *pattern = load_indexed_score(patternStream); 
     #ifdef DEBUG_W
-        printf("Pattern Score \n");
-        printScore(pattern);
+        //printf("Pattern Score \n");
+        //printScore(pattern);
     #endif
 
     // Initialize K tables
     #ifdef DEBUG_W
-        printf("init ktables\n");
+        //printf("init ktables\n");
     #endif
 
     struct KEntry** KTables = init_K_tables(pattern, target);
     #ifdef DEBUG_W
         for (int i=0; i < pattern->num_notes - 1; i++){
-            printf("\n\nprinting Ktable %d\n", i);
-            print_K_table(KTables[i], 30);
+            //printf("\n\nprinting Ktable %d\n", i);
+            //print_K_table(KTables[i], 30);
         }
     #endif
      
@@ -379,16 +386,17 @@ void search_return_chains(char* patternString, char* targetString, struct Result
         printf("chain analysis\n");
     #endif
 
-    res->chains = calloc(target->num_notes, sizeof(int*));
-    res->num_occs = extract_chains(KTables, pattern, target, res->chains);
+    //res->chains = calloc(target->num_notes, sizeof(int*));
+    //res->num_occs = extract_chains(KTables, pattern, target, res->chains);
+    res->table = KTables[pattern->num_notes - 2];
 
     #ifdef DEBUG_W
         for (int i=0; i < res->num_occs; i++) {
-            printf("    res->chains[%d]: ", i);
+            //printf("    res->chains[%d]: ", i);
             for (int j = 0; j < pattern->num_notes; j++){
-                printf("%d, ", res->chains[i][j]);
+                //printf("%d, ", res->chains[i][j]);
             }
-            printf("\n");
+            //printf("\n");
         }
     #endif
 }
@@ -398,14 +406,14 @@ char* search(char* patternString, char* targetString){
     FILE* targetStream = fmemopen(targetString, strlen(targetString), "r");
     struct Score *target = load_indexed_score(targetStream); 
     #ifdef DEBUG_W
-        printScore(target);
+        //printScore(target);
     #endif
 
     FILE* patternStream = fmemopen(patternString, strlen(patternString), "r");
     struct Score *pattern = load_indexed_score(patternStream); 
     #ifdef DEBUG_W
-        printf("Pattern Score \n");
-        printScore(pattern);
+        //printf("Pattern Score \n");
+        //printScore(pattern);
     #endif
 
     // Initialize K tables
@@ -416,8 +424,8 @@ char* search(char* patternString, char* targetString){
     struct KEntry** KTables = init_K_tables(pattern, target);
     #ifdef DEBUG_W
         for (int i=0; i < pattern->num_notes - 1; i++){
-            printf("\n\nprinting Ktable %d\n", i);
-            print_K_table(KTables[i], 30);
+            //printf("\n\nprinting Ktable %d\n", i);
+            //print_K_table(KTables[i], 30);
         }
     #endif
      
@@ -471,13 +479,13 @@ int main(int argc, char **argv) {
     // PARSE INDEXED SCORES
     struct Score *target = load_indexed_score(targetStream); 
     #ifdef DEBUG_W
-        printScore(target);
+        //printScore(target);
     #endif
 
     struct Score *pattern = load_indexed_score(patternStream); 
     #ifdef DEBUG_W
-        printf("Pattern Score \n");
-        printScore(pattern);
+        //printf("Pattern Score \n");
+        //printScore(pattern);
     #endif
 
     // Initialize K tables

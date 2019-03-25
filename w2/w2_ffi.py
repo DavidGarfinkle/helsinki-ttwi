@@ -8,12 +8,40 @@ cur_dir = os.path.abspath(os.path.join(__file__, os.path.pardir))
 # globals needed to use the shared object. It must be in valid C syntax.
 ffibuilder.cdef("""
     char* search(char* patternString, char* targetString);
-    void search_return_chains(char* patternString, char* targetString, struct Result* res);
+    void search_return_chains(struct Score* pattern, struct Score* target, struct Result* res);
 
+    struct Score* init_score(char* data);
 
-     struct Result {
+    struct Score {
+          struct IntraVector* vectors;
+          int num_notes;
+          int num_vectors;
+    };
+
+    struct IntraVector {
+          float x;
+          int y;
+          int startIndex;
+          int endIndex;
+          int startPitch;
+          int endPitch;
+          int diatonicDiff;
+          int chromaticDiff;
+    };
+
+    struct Result {
           int** chains;
           int num_occs;
+          struct KEntry* table;
+    };
+
+     struct KEntry {
+          struct IntraVector patternVec;
+          struct IntraVector targetVec;
+          float scale;
+          int w; // length of occurrence
+          int e;
+          struct KEntry* y; // backlink for building chains
      };
 
      /**

@@ -6,14 +6,13 @@ w-python:
 	python setup.py build_ext --inplace
 
 w-cffi:
-	gcc w2/w2.c w2/c_pqueue/pqueue.c -c
+	gcc w2/w2.c w2/c_pqueue/pqueue.c -c -fPIC
 	ar rc w2/libw2.a w2.o pqueue.o
 	python3 w2/w2_ffi.py
 	make clean-w-cffi
 
 clean-w-cffi:
 	rm *.o
-	rm _w2.c
 
 debug-mac:
 	make w
