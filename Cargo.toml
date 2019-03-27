@@ -5,3 +5,4 @@ authors = ["David Garfinkle <david@kn0x.io>"]
 edition = "2018"
 
 [dependencies]
+itertools = "*"
