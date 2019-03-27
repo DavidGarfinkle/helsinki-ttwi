@@ -1,0 +1,7 @@
+[package]
+name = "helsinki-ttwi"
+version = "0.1.0"
+authors = ["David Garfinkle <david@kn0x.io>"]
+edition = "2018"
+
+[dependencies]
