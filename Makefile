@@ -5,6 +5,10 @@ w-python:
 	swig -python -c++ -o w2/_w2_module.cc w2/w2.i
 	python setup.py build_ext --inplace
 
+w2:
+	gcc w2/w2.c w2/c_pqueue/pqueue.c -c -fPIC
+	ar rc w2/libw2.a w2.o pqueue.o
+
 w-cffi:
 	gcc w2/w2.c w2/c_pqueue/pqueue.c -c -fPIC
 	ar rc w2/libw2.a w2.o pqueue.o

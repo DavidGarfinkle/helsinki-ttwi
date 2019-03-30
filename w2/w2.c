@@ -5,7 +5,7 @@
 
 #include "c_pqueue/pqueue.h"
 
-#define DEBUG_W
+//#define DEBUG_W
 
 int max(int a, int b){
     return (a > b) ? a : b;
@@ -15,7 +15,7 @@ int min(int a, int b){
     return (a < b) ? a : b;
 }
 
-struct Score {
+extern struct Score {
     struct IntraVector* vectors;
     int num_notes;
     int num_vectors;
@@ -41,6 +41,19 @@ struct KEntry {
     struct KEntry* y; // backlink for building chains
 };
 
+struct IntraVector* NewIntraVector(float x, int y, int startIndex, int endIndex, int startPitch, int endPitch, int diatonicDiff, int chromaticDiff) {
+    struct IntraVector* vec = (struct IntraVector*) malloc(sizeof(struct IntraVector));
+    vec->x = x;
+    vec->y = y;
+    vec->startIndex = startIndex;
+    vec->endIndex = endIndex;
+    vec->startPitch = startPitch;
+    vec->endPitch = endPitch;
+    vec->diatonicDiff = diatonicDiff;
+    vec->chromaticDiff = chromaticDiff;
+    return vec;
+}
+
 void print_K_table(struct KEntry* KTable, int length){
     for (int i=0; i < length; i ++){
         printf("KEntry %d; y %d; tStart %d; tEnd %d; pStart %d; pEnd %d; w %d; ", i, KTable[i].targetVec.y, KTable[i].targetVec.startIndex, KTable[i].targetVec.endIndex, KTable[i].patternVec.startIndex, KTable[i].patternVec.endIndex, KTable[i].w);
@@ -55,6 +68,42 @@ void print_K_table(struct KEntry* KTable, int length){
 struct Score* load_indexed_score(FILE* data){
     char line[1024];
     struct Score* score = (struct Score*) malloc(sizeof(struct Score));
+
+    // Skip the first line which documents the csv headers
+    fgets(line, 1024, data);
+    // Get the number of notes (assumed to be on the second line)
+    fgets(line, 1024, data);
+    score->num_notes = atoi(line); fflush(stdout);
+    printf("num notes %d\n", score->num_notes);
+    // Get the number of vectors (assumed to be on the third line)
+    fgets(line, 1024, data);
+    score->num_vectors = atoi(line);fflush(stdout);
+    printf("num vectors %d\n", score->num_vectors);
+
+    // Allocate space for storing vectors
+    // (use malloc to create space that is persistent beyond function scope)
+    score->vectors = (struct IntraVector *) malloc(sizeof(struct IntraVector) * score->num_vectors);
+
+    // Load the rest of the intra vectors
+    for (int i=0; i<score->num_vectors; i++){
+        fgets(line, 1024, data);
+        score->vectors[i].x = atof(strtok(line, ","));
+        score->vectors[i].y = atoi(strtok(NULL, ",")); 
+        score->vectors[i].startIndex = atoi(strtok(NULL, ",")); 
+        score->vectors[i].endIndex = atoi(strtok(NULL, ",")); 
+        score->vectors[i].startPitch = atoi(strtok(NULL, ",")); 
+        score->vectors[i].endPitch = atoi(strtok(NULL, ",")); 
+        //strcpy(score->vectors[i].startPitch, strtok(NULL, ",")); 
+        //strcpy(score->vectors[i].endPitch, strtok(NULL, ",")); 
+        score->vectors[i].diatonicDiff = atoi(strtok(NULL, ",")); 
+        score->vectors[i].chromaticDiff = atoi(strtok(NULL, ",")); 
+    }
+
+    return score;
+}
+
+struct Score* load_indexed_score_by_ptr(FILE* data, struct Score* score){
+    char line[1024];
 
     // Skip the first line which documents the csv headers
     fgets(line, 1024, data);
@@ -83,13 +132,43 @@ struct Score* load_indexed_score(FILE* data){
         score->vectors[i].diatonicDiff = atoi(strtok(NULL, ",")); 
         score->vectors[i].chromaticDiff = atoi(strtok(NULL, ",")); 
     }
-
     return score;
+}
+
+struct Score* init_score_with_length(char* data, int length) {
+    FILE* stream = fmemopen(data, length, "r");
+    return load_indexed_score(stream);
 }
 
 struct Score* init_score(char* data) {
     FILE* stream = fmemopen(data, strlen(data), "r");
     return load_indexed_score(stream);
+}
+
+struct Score* init_score_from_int_array(int num_notes, int num_vectors, int* vector_data) {
+    struct Score* score = (struct Score*) malloc(sizeof(struct Score));
+    score->vectors = (struct IntraVector *) malloc(sizeof(struct IntraVector) * score->num_vectors);
+    score->num_notes = num_notes;
+    score->num_vectors = num_vectors;
+
+    for (int i = 0; i < num_vectors; i += 8) {
+        score->vectors[i].x = vector_data[i];
+        score->vectors[i].y = vector_data[i+1];
+        score->vectors[i].startIndex = vector_data[i+2];
+        score->vectors[i].endIndex = vector_data[i+3];
+        score->vectors[i].startPitch = vector_data[i+4];
+        score->vectors[i].endPitch = vector_data[i+5];
+        score->vectors[i].diatonicDiff = vector_data[i+6];
+        score->vectors[i].chromaticDiff = vector_data[i+7];
+    }
+}
+
+struct Score* init_score_from_vectors(int num_notes, int num_vectors, struct IntraVector* vectors) {
+    printf("score from vecs"); fflush(stdout);
+    struct Score* score = (struct Score*) malloc(sizeof(struct Score));
+    score->vectors = vectors;
+    score->num_notes = num_notes;
+    score->num_vectors = num_vectors;
 }
 
 void printScore(struct Score* score){
@@ -216,7 +295,6 @@ void write_chains_to_json(struct KEntry** KTables, struct Score* pattern, struct
     fprintf(output, "]");
 
 }
-            
 
 int compare_K_entries_startIndex(const void* x, const void* y){
     struct KEntry left = *((struct KEntry*) x);
@@ -338,7 +416,7 @@ void algorithm(struct KEntry** KTables, struct Score* pattern, struct Score* tar
 
 }
 
-struct Result {
+extern struct Result {
     int** chains;
     int num_occs;
     struct KEntry* table;
@@ -366,6 +444,7 @@ void search_return_chains(struct Score* pattern, struct Score* target, struct Re
         //printf("init ktables\n");
     #endif
 
+    printf("Ktables\n"); fflush(stdout);
     struct KEntry** KTables = init_K_tables(pattern, target);
     #ifdef DEBUG_W
         for (int i=0; i < pattern->num_notes - 1; i++){
@@ -386,9 +465,11 @@ void search_return_chains(struct Score* pattern, struct Score* target, struct Re
         printf("chain analysis\n");
     #endif
 
-    //res->chains = calloc(target->num_notes, sizeof(int*));
-    //res->num_occs = extract_chains(KTables, pattern, target, res->chains);
-    res->table = KTables[pattern->num_notes - 2];
+    res->chains = calloc(target->num_notes, sizeof(int*));
+    res->num_occs = extract_chains(KTables, pattern, target, res->chains);
+    printf("returning table"); fflush(stdout);
+    //res->table = KTables[pattern->num_notes - 2];
+    //printf("returned table"); fflush(stdout);
 
     #ifdef DEBUG_W
         for (int i=0; i < res->num_occs; i++) {
@@ -447,6 +528,7 @@ char* search(char* patternString, char* targetString){
     return outputString;
 }
 
+/*
 int main(int argc, char **argv) {
 
     int streamInput = 0;
@@ -523,3 +605,5 @@ int main(int argc, char **argv) {
 
     return 0;
 }
+
+*/
