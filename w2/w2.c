@@ -15,10 +15,16 @@ int min(int a, int b){
     return (a < b) ? a : b;
 }
 
-extern struct Score {
+struct Score {
     struct IntraVector* vectors;
     int num_notes;
     int num_vectors;
+};
+
+extern struct Result {
+    int** chains;
+    int num_occs;
+    struct KEntry* table;
 };
 
 struct IntraVector {
@@ -67,49 +73,13 @@ void print_K_table(struct KEntry* KTable, int length){
 
 struct Score* load_indexed_score(FILE* data){
     char line[1024];
-    struct Score* score = (struct Score*) malloc(sizeof(struct Score));
+    struct Score* score =  malloc(sizeof(struct Score));
 
     // Skip the first line which documents the csv headers
     fgets(line, 1024, data);
     // Get the number of notes (assumed to be on the second line)
     fgets(line, 1024, data);
-    score->num_notes = atoi(line); fflush(stdout);
-    printf("num notes %d\n", score->num_notes);
-    // Get the number of vectors (assumed to be on the third line)
-    fgets(line, 1024, data);
-    score->num_vectors = atoi(line);fflush(stdout);
-    printf("num vectors %d\n", score->num_vectors);
-
-    // Allocate space for storing vectors
-    // (use malloc to create space that is persistent beyond function scope)
-    score->vectors = (struct IntraVector *) malloc(sizeof(struct IntraVector) * score->num_vectors);
-
-    // Load the rest of the intra vectors
-    for (int i=0; i<score->num_vectors; i++){
-        fgets(line, 1024, data);
-        score->vectors[i].x = atof(strtok(line, ","));
-        score->vectors[i].y = atoi(strtok(NULL, ",")); 
-        score->vectors[i].startIndex = atoi(strtok(NULL, ",")); 
-        score->vectors[i].endIndex = atoi(strtok(NULL, ",")); 
-        score->vectors[i].startPitch = atoi(strtok(NULL, ",")); 
-        score->vectors[i].endPitch = atoi(strtok(NULL, ",")); 
-        //strcpy(score->vectors[i].startPitch, strtok(NULL, ",")); 
-        //strcpy(score->vectors[i].endPitch, strtok(NULL, ",")); 
-        score->vectors[i].diatonicDiff = atoi(strtok(NULL, ",")); 
-        score->vectors[i].chromaticDiff = atoi(strtok(NULL, ",")); 
-    }
-
-    return score;
-}
-
-struct Score* load_indexed_score_by_ptr(FILE* data, struct Score* score){
-    char line[1024];
-
-    // Skip the first line which documents the csv headers
-    fgets(line, 1024, data);
-    // Get the number of notes (assumed to be on the second line)
-    fgets(line, 1024, data);
-    score->num_notes = atoi(line);
+    score->num_notes = atoi(line); 
     // Get the number of vectors (assumed to be on the third line)
     fgets(line, 1024, data);
     score->num_vectors = atoi(line);
@@ -132,43 +102,13 @@ struct Score* load_indexed_score_by_ptr(FILE* data, struct Score* score){
         score->vectors[i].diatonicDiff = atoi(strtok(NULL, ",")); 
         score->vectors[i].chromaticDiff = atoi(strtok(NULL, ",")); 
     }
-    return score;
-}
 
-struct Score* init_score_with_length(char* data, int length) {
-    FILE* stream = fmemopen(data, length, "r");
-    return load_indexed_score(stream);
+    return score;
 }
 
 struct Score* init_score(char* data) {
     FILE* stream = fmemopen(data, strlen(data), "r");
     return load_indexed_score(stream);
-}
-
-struct Score* init_score_from_int_array(int num_notes, int num_vectors, int* vector_data) {
-    struct Score* score = (struct Score*) malloc(sizeof(struct Score));
-    score->vectors = (struct IntraVector *) malloc(sizeof(struct IntraVector) * score->num_vectors);
-    score->num_notes = num_notes;
-    score->num_vectors = num_vectors;
-
-    for (int i = 0; i < num_vectors; i += 8) {
-        score->vectors[i].x = vector_data[i];
-        score->vectors[i].y = vector_data[i+1];
-        score->vectors[i].startIndex = vector_data[i+2];
-        score->vectors[i].endIndex = vector_data[i+3];
-        score->vectors[i].startPitch = vector_data[i+4];
-        score->vectors[i].endPitch = vector_data[i+5];
-        score->vectors[i].diatonicDiff = vector_data[i+6];
-        score->vectors[i].chromaticDiff = vector_data[i+7];
-    }
-}
-
-struct Score* init_score_from_vectors(int num_notes, int num_vectors, struct IntraVector* vectors) {
-    printf("score from vecs"); fflush(stdout);
-    struct Score* score = (struct Score*) malloc(sizeof(struct Score));
-    score->vectors = vectors;
-    score->num_notes = num_notes;
-    score->num_vectors = num_vectors;
 }
 
 void printScore(struct Score* score){
@@ -203,11 +143,6 @@ void extract_chain(struct KEntry row, int* chain, int* maxTargetWindow, int* tra
 int extract_chains(struct KEntry** KTables, struct Score* pattern, struct Score* target, int** chains){
     int num_occs = 0;
 
-    #ifdef DEBUG_W
-        //printf("extract chains--- final ktable:\n");
-        //print_K_table(KTables[pattern->num_notes - 2], target->num_vectors);
-    #endif
-
     for (int i=0; i < target->num_vectors; i++){
         int transposition = 0;
         int maxTargetWindow = 0;
@@ -220,80 +155,13 @@ int extract_chains(struct KEntry** KTables, struct Score* pattern, struct Score*
 
         int* chain = calloc(pattern->num_notes, sizeof(int));
 
-        #ifdef DEBUG_W
-            //printf("extracting chain %d\n", num_occs);
-        #endif
-
         extract_chain(KTables[pattern->num_notes - 2][i], chain, &maxTargetWindow, &transposition, &diatonicOcc);
-
-        #ifdef DEBUG_W
-            //printf("    chain %d: ", num_occs);
-            for (int j = 0; j < pattern->num_notes; j++){
-                //printf("%d, ", chain[j]);
-            }
-            //printf("\n");
-        #endif
-
         chains[num_occs] = chain;
 
-        #ifdef DEBUG_W
-            //printf("    chains[i]: ");
-            for (int j = 0; j < pattern->num_notes; j++){
-                //printf("%d, ", chains[num_occs][j]);
-            }
-            //printf("\n");
-        #endif
         num_occs++;
     }
 
     return num_occs;
-}
-
-void write_chains_to_json(struct KEntry** KTables, struct Score* pattern, struct Score* target, FILE* output) {
-    int num_occs = 0;
-
-    fprintf(output, "[");
-    // Inspect all rows of the final K Table
-    for (int i=0; i < target->num_vectors; i++){
-        int chain[pattern->num_notes];
-        int transposition = 0;
-        int maxTargetWindow = 0;
-        int diatonicOcc = 0;
-
-        // Full occurrence will be m - 1 vectors, indexed at 0 ==> check for m - 2
-        if (KTables[pattern->num_notes - 2][i].w != pattern->num_notes - 2) {
-            continue;
-        }
-
-        extract_chain(KTables[pattern->num_notes - 2][i], chain, &maxTargetWindow, &transposition, &diatonicOcc);
-        num_occs++;
-
-        // Print one occurrence
-        if (num_occs == 1) {
-            fprintf(output, "{");
-        }
-        else {
-            fprintf(output, ",\n {");
-        }
-
-        fprintf(output, "\"targetNotes\": [");
-        for (int j=0; j < pattern->num_notes; j++){
-            fprintf(output, "%d", chain[j]);
-            if (j + 1 != pattern->num_notes){
-                fprintf(output, ", ");
-            }
-        }
-        fprintf(output, "], ");
-
-        fprintf(output, "\"transposition\": %d, ", transposition);
-
-        fprintf(output, "\"diatonicOcc\": %s", diatonicOcc ? "true" : "false");
-
-
-        fprintf(output, "}");
-    }
-    fprintf(output, "]");
-
 }
 
 int compare_K_entries_startIndex(const void* x, const void* y){
@@ -369,7 +237,7 @@ void algorithm(struct KEntry** KTables, struct Score* pattern, struct Score* tar
     for (int i=0; i < pattern->num_notes; i++){
         Queues[i] = pqueue_new(compare_K_entries_endIndex, target->num_vectors);
     }
-    
+
     // Initialize the first Queue. These are lists of pointers to KEntries
     for (int i=0; i < target->num_vectors; i++){
         // TODO don't add empty KTable rows. find optimal size of KTables and queues..
@@ -394,6 +262,7 @@ void algorithm(struct KEntry** KTables, struct Score* pattern, struct Score* tar
             }
 
             if (q->targetVec.endIndex == KTables[i][j].targetVec.startIndex){
+
                 // For multiple possible antecedents (multiple chains), take the longest one
                 while (((struct KEntry*)Queues[i]->data[0])->targetVec.endIndex == q->targetVec.endIndex && Queues[i]->size > 0){
                     struct KEntry* r = (struct KEntry*) pqueue_dequeue(Queues[i]);
@@ -416,194 +285,12 @@ void algorithm(struct KEntry** KTables, struct Score* pattern, struct Score* tar
 
 }
 
-extern struct Result {
-    int** chains;
-    int num_occs;
-    struct KEntry* table;
-};
-
 void search_return_chains(struct Score* pattern, struct Score* target, struct Result* res){
-    //struct Result* res = (struct Result*) malloc(sizeof(struct Result));
 
-    // PARSE INDEXED SCORES
-    //FILE* targetStream = fmemopen(targetString, strlen(targetString), "r");
-    //struct Score *target = load_indexed_score(targetStream); 
-    #ifdef DEBUG_W
-        //printScore(target);
-    #endif
-
-    //FILE* patternStream = fmemopen(patternString, strlen(patternString), "r");
-    //struct Score *pattern = load_indexed_score(patternStream); 
-    #ifdef DEBUG_W
-        //printf("Pattern Score \n");
-        //printScore(pattern);
-    #endif
-
-    // Initialize K tables
-    #ifdef DEBUG_W
-        //printf("init ktables\n");
-    #endif
-
-    printf("Ktables\n"); fflush(stdout);
     struct KEntry** KTables = init_K_tables(pattern, target);
-    #ifdef DEBUG_W
-        for (int i=0; i < pattern->num_notes - 1; i++){
-            //printf("\n\nprinting Ktable %d\n", i);
-            //print_K_table(KTables[i], 30);
-        }
-    #endif
-     
-    
-    // Start W line sweeping
-    #ifdef DEBUG_W
-        printf("Starting algorithm...\n");
-    #endif
 
     algorithm(KTables, pattern, target);
-
-    #ifdef DEBUG_W
-        printf("chain analysis\n");
-    #endif
 
     res->chains = calloc(target->num_notes, sizeof(int*));
     res->num_occs = extract_chains(KTables, pattern, target, res->chains);
-    printf("returning table"); fflush(stdout);
-    //res->table = KTables[pattern->num_notes - 2];
-    //printf("returned table"); fflush(stdout);
-
-    #ifdef DEBUG_W
-        for (int i=0; i < res->num_occs; i++) {
-            //printf("    res->chains[%d]: ", i);
-            for (int j = 0; j < pattern->num_notes; j++){
-                //printf("%d, ", res->chains[i][j]);
-            }
-            //printf("\n");
-        }
-    #endif
 }
-
-char* search(char* patternString, char* targetString){
-    // PARSE INDEXED SCORES
-    FILE* targetStream = fmemopen(targetString, strlen(targetString), "r");
-    struct Score *target = load_indexed_score(targetStream); 
-    #ifdef DEBUG_W
-        //printScore(target);
-    #endif
-
-    FILE* patternStream = fmemopen(patternString, strlen(patternString), "r");
-    struct Score *pattern = load_indexed_score(patternStream); 
-    #ifdef DEBUG_W
-        //printf("Pattern Score \n");
-        //printScore(pattern);
-    #endif
-
-    // Initialize K tables
-    #ifdef DEBUG_W
-        printf("init ktables\n");
-    #endif
-
-    struct KEntry** KTables = init_K_tables(pattern, target);
-    #ifdef DEBUG_W
-        for (int i=0; i < pattern->num_notes - 1; i++){
-            //printf("\n\nprinting Ktable %d\n", i);
-            //print_K_table(KTables[i], 30);
-        }
-    #endif
-     
-    
-    // Start W line sweeping
-    #ifdef DEBUG_W
-        printf("Starting algorithm...\n");
-    #endif
-
-    algorithm(KTables, pattern, target);
-
-    #ifdef DEBUG_W
-        printf("chain analysis\n");
-    #endif
-
-    char outputString[100000];
-    FILE* outputStream = fmemopen(outputString, strlen(outputString), "w");
-    write_chains_to_json(KTables, pattern, target, outputStream);
-    return outputString;
-}
-
-/*
-int main(int argc, char **argv) {
-
-    int streamInput = 0;
-    FILE* patternStream;
-    FILE* outputStream;
-    FILE* targetStream; 
-
-    // FLAGS
-    #ifdef DEBUG_W
-        printf("Checking flags... first is %s\n", argv[1]);
-    #endif
-    if (!strcmp(argv[1], "--stream")) {
-        #ifdef DEBUG_W
-            printf("SELECTED STREAM: Reading pattern from stdin; writing output to stdout\n");
-        #endif
-        streamInput = 1;
-        patternStream = stdin;
-        outputStream = stdout;
-        targetStream = fopen(argv[2], "r");
-    }
-    else {
-        #ifdef DEBUG_W
-            printf("No stream flag \n");
-        #endif
-        patternStream = fopen(argv[1], "r");
-        targetStream = fopen(argv[2], "r");
-        outputStream = fopen(argv[3], "w");
-    }
-
-    // PARSE INDEXED SCORES
-    struct Score *target = load_indexed_score(targetStream); 
-    #ifdef DEBUG_W
-        //printScore(target);
-    #endif
-
-    struct Score *pattern = load_indexed_score(patternStream); 
-    #ifdef DEBUG_W
-        //printf("Pattern Score \n");
-        //printScore(pattern);
-    #endif
-
-    // Initialize K tables
-    #ifdef DEBUG_W
-        printf("init ktables\n");
-    #endif
-
-    struct KEntry** KTables = init_K_tables(pattern, target);
-    #ifdef DEBUG_W
-        for (int i=0; i < pattern->num_notes - 1; i++){
-            printf("\n\nprinting Ktable %d\n", i);
-            print_K_table(KTables[i], 30);
-        }
-    #endif
-     
-    
-    // Start W line sweeping
-    #ifdef DEBUG_W
-        printf("Starting algorithm...\n");
-    #endif
-
-    algorithm(KTables, pattern, target);
-
-    #ifdef DEBUG_W
-        printf("chain analysis\n");
-    #endif
-
-    write_chains_to_json(KTables, pattern, target, outputStream);
-
-    // Close file pointer, but not stdin
-    if (!streamInput) {
-        fclose(outputStream);
-    }
-    fclose(targetStream);
-
-    return 0;
-}
-
-*/
