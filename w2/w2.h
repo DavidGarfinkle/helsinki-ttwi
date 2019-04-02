@@ -1,4 +1,4 @@
-char* search(char* patternStream, char* targetStream);
+//char* search(char* patternStream, char* targetStream);
 void search_return_chains(struct Score* pattern, struct Score* target, struct Result* res);
 
 struct IntraVector* NewIntraVector(float x, int y, int startIndex, int endIndex, int startPitch, int endPitch, int diatonicDiff, int chromaticDiff);
