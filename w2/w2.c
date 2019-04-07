@@ -56,7 +56,6 @@ struct IntraVector NewIntraVector(float x, int y, int startIndex, int endIndex) 
     vec->y = y;
     vec->startIndex = startIndex;
     vec->endIndex = endIndex;
-		printf("C: new intra vec %f %d %d %d\n", x, y, startIndex, endIndex); fflush(stdout);
     return *vec;
 }
 
@@ -233,7 +232,7 @@ struct KEntry** init_K_tables(struct Score* pattern, struct Score* target){
         qsort(KTables[i], numMatching, sizeof(struct KEntry), compare_K_entries_startIndex);
 				KTables[i][numMatching].f = 1;
     }
-		printKTables(KTables, pattern->num_notes - 1);
+		//printKTables(KTables, pattern->num_notes - 1);
     return KTables;
 }
 
@@ -291,7 +290,7 @@ void algorithm(struct KEntry** KTables, struct Score* pattern, struct Score* tar
         KTables[i][target->num_vectors-1].e = 1;
         pqueue_enqueue(Queues[i+1], &KTables[i][target->num_vectors-1]);
     }
-		printKTables(KTables, pattern->num_notes - 1);
+		//printKTables(KTables, pattern->num_notes - 1);
 }
 
 int search(struct Score* pattern, struct Score* target, struct Result* results) {
