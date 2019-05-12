@@ -21,7 +21,7 @@ struct Score {
     int num_vectors;
 };
 
-extern struct Result {
+struct Result {
     int** chains;
     int num_occs;
     struct KEntry* table;
@@ -236,6 +236,14 @@ struct KEntry** init_K_tables(struct Score* pattern, struct Score* target){
     return KTables;
 }
 
+void freeKTables(struct KEntry** tables, int num_tables, int table_length) {
+	for(int i=0; i < num_tables; i++) {
+		for(int j=0; j < num_tables; j++) {
+			free(&tables[i][j]);
+		}
+		free(tables[i]);
+	}
+}
 
 void algorithm(struct KEntry** KTables, struct Score* pattern, struct Score* target){
     // TODO find optimal size of K Tables and queues
@@ -290,7 +298,9 @@ void algorithm(struct KEntry** KTables, struct Score* pattern, struct Score* tar
         KTables[i][target->num_vectors-1].e = 1;
         pqueue_enqueue(Queues[i+1], &KTables[i][target->num_vectors-1]);
     }
-		//printKTables(KTables, pattern->num_notes - 1);
+    for (int i=0; i < pattern->num_notes; i++){
+			pqueue_delete(Queues[i]);
+		}
 }
 
 int search(struct Score* pattern, struct Score* target, struct Result* results) {
@@ -312,6 +322,8 @@ void search_return_chains(struct Score* pattern, struct Score* target, struct Re
 
     res->chains = calloc(target->num_notes, sizeof(int*));
     res->num_occs = extract_chains(KTables, pattern, target, res->chains);
+
+		freeKTables(KTables, target->num_vectors, pattern->num_vectors);
 }
 /*
 
