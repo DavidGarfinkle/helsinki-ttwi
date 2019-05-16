@@ -238,14 +238,19 @@ struct KEntry** init_K_tables(struct Score* pattern, struct Score* target){
 
 void freeKTables(struct KEntry** tables, int num_tables, int table_length) {
 	for(int i=0; i < num_tables; i++) {
-		for(int j=0; j < num_tables; j++) {
+		for(int j=0; j < table_length; j++) {
 			free(&tables[i][j]);
+			printf("free %d\n", j); fflush(stdout);
 		}
+		printf("free %d\n", i); fflush(stdout);
 		free(tables[i]);
 	}
 }
 
 void algorithm(struct KEntry** KTables, struct Score* pattern, struct Score* target){
+		//:debug printf("pattern: notes %d; vectors %d", pattern->num_notes, pattern->num_vectors); fflush(stdout);
+		//:debug printf("target: notes %d; vectors %d", target->num_notes, target->num_vectors); fflush(stdout);
+
     // TODO find optimal size of K Tables and queues
     //struct KEntry*** Queues = malloc(pattern->num_notes * sizeof(struct KEntry**));
     PQueue** Queues = (PQueue**) malloc(pattern->num_notes * sizeof(PQueue*));
@@ -265,6 +270,7 @@ void algorithm(struct KEntry** KTables, struct Score* pattern, struct Score* tar
     struct KEntry* q;
     // For all K tables except the first (already copied to queue) (there are m - 1 Ktables)
     for (int i=1; i <= pattern->num_notes - 2; i++){
+				//:debug printf("k table %d\n", i);fflush(stdout);
 				// todo: fix segfault; when == 0, continue;
         if (Queues[i]->size > 0){
             q = (struct KEntry *) pqueue_dequeue(Queues[i]);
@@ -274,6 +280,7 @@ void algorithm(struct KEntry** KTables, struct Score* pattern, struct Score* tar
         
         // For all rows in the current K Table
         for (int j=0; KTables[i][j].f != 1; j++){
+						//:debug printf("	k row %d\n", j);fflush(stdout);
             // Advance the possible antecedent until it matches our first postcedent
             while (q->targetVec.endIndex < KTables[i][j].targetVec.startIndex && Queues[i]->size > 0){
                 q = (struct KEntry *) pqueue_dequeue(Queues[i]);
@@ -306,11 +313,17 @@ void algorithm(struct KEntry** KTables, struct Score* pattern, struct Score* tar
 }
 
 int search(struct Score* pattern, struct Score* target, struct Result* results) {
+	//:debug printf("tables\n"); fflush(stdout);
 	struct KEntry ** KTables = init_K_tables(pattern, target);
+
+	//:debug printf("algorithm\n");fflush(stdout);
 	algorithm(KTables, pattern, target);
 
+	//:debug printf("chain\n");fflush(stdout);
 	results->chains = calloc(target->num_notes, sizeof(int*));
 	results->num_occs = extract_chains(KTables, pattern, target, results->chains);
+
+	//:debug printf("free\n");fflush(stdout);
 
 	return 0;
 }
@@ -324,8 +337,6 @@ void search_return_chains(struct Score* pattern, struct Score* target, struct Re
 
     res->chains = calloc(target->num_notes, sizeof(int*));
     res->num_occs = extract_chains(KTables, pattern, target, res->chains);
-
-		freeKTables(KTables, target->num_vectors, pattern->num_vectors);
 }
 /*
 
