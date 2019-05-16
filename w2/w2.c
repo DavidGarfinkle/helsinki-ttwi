@@ -268,7 +268,9 @@ void algorithm(struct KEntry** KTables, struct Score* pattern, struct Score* tar
 				// todo: fix segfault; when == 0, continue;
         if (Queues[i]->size > 0){
             q = (struct KEntry *) pqueue_dequeue(Queues[i]);
-        }
+        } else {
+					continue;
+				}
         
         // For all rows in the current K Table
         for (int j=0; KTables[i][j].f != 1; j++){
