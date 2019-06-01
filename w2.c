@@ -5,7 +5,10 @@
 
 #include "c_pqueue/pqueue.h"
 
-//#define DEBUG_W
+#define W2_DEBUG 1
+#define debug_print(fmt, ...) \
+        do { if (W2_DEBUG) fprintf(stderr, "%s:%d:%s(): " fmt, __FILE__, \
+                                __LINE__, __func__, __VA_ARGS__); fflush(stderr); } while (0)
 
 int max(int a, int b){
     return (a > b) ? a : b;
@@ -248,9 +251,6 @@ void freeKTables(struct KEntry** tables, int num_tables, int table_length) {
 }
 
 void algorithm(struct KEntry** KTables, struct Score* pattern, struct Score* target){
-		//:debug printf("pattern: notes %d; vectors %d", pattern->num_notes, pattern->num_vectors); fflush(stdout);
-		//:debug printf("target: notes %d; vectors %d", target->num_notes, target->num_vectors); fflush(stdout);
-
     // TODO find optimal size of K Tables and queues
     //struct KEntry*** Queues = malloc(pattern->num_notes * sizeof(struct KEntry**));
     PQueue** Queues = (PQueue**) malloc(pattern->num_notes * sizeof(PQueue*));
@@ -270,12 +270,11 @@ void algorithm(struct KEntry** KTables, struct Score* pattern, struct Score* tar
     struct KEntry* q;
     // For all K tables except the first (already copied to queue) (there are m - 1 Ktables)
     for (int i=1; i <= pattern->num_notes - 2; i++){
-				//:debug printf("k table %d\n", i);fflush(stdout);
-				// todo: fix segfault; when == 0, continue;
+				debug_print("k table %d\n", i);
         if (Queues[i]->size > 0){
             q = (struct KEntry *) pqueue_dequeue(Queues[i]);
         } else {
-					continue;
+					//continue;
 				}
         
         // For all rows in the current K Table
