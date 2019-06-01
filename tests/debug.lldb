@@ -1,6 +1,0 @@
-breakpoint set --name algorithm
-breakpoint set -l 256 -f w2.c --condition q->targetVec.endIndex == 14
-breakpoint set -l 256 -f w2.c --condition q->targetVec.endIndex == 16
-breakpoint set -l 256 -f w2.c --condition q->targetVec.endIndex == 17
-breakpoint set -l 256 -f w2.c --condition q->targetVec.endIndex == 18
-breakpoint set -l 256 -f w2.c --condition q->targetVec.endIndex == 21

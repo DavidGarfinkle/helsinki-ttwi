@@ -1,14 +1,18 @@
-all: libw2.a
+.PHONY = clean
 
-pqueue.o: w2/c_pqueue/pqueue.c
-	gcc -O3 w2/c_pqueue/pqueue.c -c -fPIC
+all: libw2.a clean
 
-w2.o: w2/w2.c
-	gcc -O3 w2/w2.c -c -fPIC
+PQ_DEP = c-generic-pqueue
 
-libw2.a: w2.o pqueue.o
-	ar rc w2/libw2.a w2.o pqueue.o
+$(PQ_DEP)/pqueue.o: $(PQ_DEP)/pqueue.c
+	gcc -O3 $(PQ_DEP)/pqueue.c -c -fPIC -o $(PQ_DEP)/pqueue.o
 
-test:
-	make w
-	w2/w2 "tests/query_a.vectors" "tests/leiermann.vectors" "tests/lemstrom.res"
+w2.o: w2.c
+	gcc -O3 w2.c -c -fPIC
+
+libw2.a: w2.o $(PQ_DEP)/pqueue.o
+	ar rc libw2.a w2.o $(PQ_DEP)/pqueue.o
+
+clean:
+	rm $(PQ_DEP)/pqueue.o
+	rm w2.o
