@@ -1,14 +1,20 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <math.h>
+#include "w2.h"
 
-#include "c_pqueue/pqueue.h"
-
-#define W2_DEBUG 1
-#define debug_print(fmt, ...) \
-        do { if (W2_DEBUG) fprintf(stderr, "%s:%d:%s(): " fmt, __FILE__, \
+#define W2_DEBUG 0
+#define print_debug_1(fmt, ...) \
+        do { if (W2_DEBUG >= 1) fprintf(stderr, "%s:%d:%s(): " fmt, __FILE__, \
                                 __LINE__, __func__, __VA_ARGS__); fflush(stderr); } while (0)
+#define print_debug_2(fmt, ...) \
+        do { if (W2_DEBUG >= 2) fprintf(stderr, "%s:%d:%s(): " fmt, __FILE__, \
+                                __LINE__, __func__, __VA_ARGS__); fflush(stderr); } while (0)
+
+#define print_debug_3(fmt, ...) \
+        do { if (W2_DEBUG >= 3) fprintf(stderr, "%s:%d:%s(): " fmt, __FILE__, \
+                                __LINE__, __func__, __VA_ARGS__); fflush(stderr); } while (0)
+
+#define fatal_error(fmt, ...) \
+        do { fprintf(stderr, "%s:%d:%s(): " fmt, __FILE__, \
+                                __LINE__, __func__, __VA_ARGS__); exit(1); } while (0)
 
 int max(int a, int b){
     return (a > b) ? a : b;
@@ -18,43 +24,11 @@ int min(int a, int b){
     return (a < b) ? a : b;
 }
 
-struct Score {
-    struct IntraVector* vectors;
-    int num_notes;
-    int num_vectors;
-};
-
-struct Result {
-    int** chains;
-    int num_occs;
-    struct KEntry* table;
-};
-
-struct IntraVector {
-    float x;
-    int y;
-    int startIndex;
-    int endIndex;
-
-		int chromaticDiff;
-		int diatonicDiff;
-		int startPitch;
-		int endPitch;
-
-};
-
-struct KEntry {
-    struct IntraVector patternVec;
-    struct IntraVector targetVec;
-    float scale;
-    int w; // length of occurrence
-		int f; // final
-    int e;
-    struct KEntry* y; // backlink for building chains
-};
-
-struct IntraVector NewIntraVector(float x, int y, int startIndex, int endIndex) {
-    struct IntraVector* vec = (struct IntraVector*) malloc(sizeof(struct IntraVector));
+IntraVector NewIntraVector(float x, int y, int startIndex, int endIndex) {
+    IntraVector* vec = (IntraVector*) malloc(sizeof(IntraVector));
+		if (vec == NULL) {
+			fatal_error("%s", "failed to malloc intra vector");
+		}
     vec->x = x;
     vec->y = y;
     vec->startIndex = startIndex;
@@ -62,296 +36,339 @@ struct IntraVector NewIntraVector(float x, int y, int startIndex, int endIndex) 
     return *vec;
 }
 
-void print_K_table(struct KEntry* KTable){
-	int i = 0;
-	while (KTable[i].f != 1) {
-        printf("KEntry %d; y %d; tStart %d; tEnd %d; pStart %d; pEnd %d; w %d; ", i, KTable[i].targetVec.y, KTable[i].targetVec.startIndex, KTable[i].targetVec.endIndex, KTable[i].patternVec.startIndex, KTable[i].patternVec.endIndex, KTable[i].w);
-        if (KTable[i].w > 1 && KTable[i].y != NULL) {
-            printf("y-endindex %d\n", KTable[i].y->targetVec.endIndex);
-        } else {
-            printf("\n");
-        }
-				i++;
-    }
+Score* InitScoreFromVectors(int numNotes, int numVecs, IntraVector* vecs) {
+		Score* score = (Score*) malloc(sizeof(Score));
+		if (score == NULL) {
+			fatal_error("%s", "failed to malloc score");
+		}
+		score->num_notes = numNotes;
+		score->num_vectors = numVecs;
+		score->vectors = (IntraVector*) calloc(numVecs, sizeof(IntraVector));
+		if (score->vectors == NULL) {
+			fatal_error("%s", "failed to calloc score->vectors");
+		}
+		
+		for (int i = 0; i < numVecs; i++) {
+			score->vectors[i] = vecs[i];
+		}
+
+		return score;
 }
 
-void printKTables(struct KEntry** KTables, int length){
-	for (int k = 0; k < length; k++) {
-		printf("\nKTABLE %d\n", k); fflush(stdout);
-		print_K_table(KTables[k]);
+KEntryNode* NewKEntryNode(IntraVector patternVec, IntraVector targetVec) {
+		KEntryNode* node = (KEntryNode*) malloc(sizeof(KEntryNode));
+		if (node == NULL) {
+			fatal_error("%s", "failed to KEntryNode");
+		}
+		node->patternVec = patternVec;
+		node->targetVec = targetVec;
+		node->w = 1;
+		node->y = NULL;
+		node->next = NULL;
+		return node;
+}
+
+void print_IntraVector(IntraVector vec) {
+	fprintf(stderr, "x: %f, y: %d, startIndex: %d, endIndex: %d",
+			vec.x, vec.y, vec.startIndex, vec.endIndex);
+}
+
+void print_KEntryNode(KEntryNode* node) {
+	fprintf(stderr, "\t----KEntryNode----\n");
+
+	fprintf(stderr, "\tpvec ");
+	print_IntraVector(node->patternVec);
+	fprintf(stderr, "\n");
+
+	fprintf(stderr, "\ttvec ");
+	print_IntraVector(node->targetVec);
+	fprintf(stderr, "\n");
+
+	if (node->y != NULL) {
+		printf("---- y: \n");
+		print_KEntryNode(node->y);
 	}
 }
 
-struct Score* initScoreFromVectors(int numNotes, int numVecs, struct IntraVector* vecs) {
-	struct Score* score = (struct Score*) malloc(sizeof(struct Score));
-	score->num_notes = numNotes;
-	score->num_vectors = numVecs;
-	score->vectors = (struct IntraVector*) calloc(numVecs, sizeof(struct IntraVector));
-	
-	for (int i = 0; i < numVecs; i++) {
-		score->vectors[i] = vecs[i];
+void print_KTableLinkedList(KTableLinkedList* list, int num) {
+	print_debug_1("KTableLinkedList #%d of length %d\n", num, list->length);
+	if (list->length == 0) {
+		return;
 	}
-
-	return score;
+	KEntryNode* ptr = list->head;
+	do {
+		print_KEntryNode(ptr);
+		ptr = ptr->next;
+	} while(ptr != NULL);
 }
 
-struct Score* load_indexed_score(FILE* data){
-    char line[1024];
-    struct Score* score =  malloc(sizeof(struct Score));
+void print_KTable(KTable table, int num, int length) {
+	print_debug_1("KTable #%d of length %d\n", num, length);
 
-    // Skip the first line which documents the csv headers
-    fgets(line, 1024, data);
-    // Get the number of notes (assumed to be on the second line)
-    fgets(line, 1024, data);
-    score->num_notes = atoi(line); 
-    // Get the number of vectors (assumed to be on the third line)
-    fgets(line, 1024, data);
-    score->num_vectors = atoi(line);
-
-    // Allocate space for storing vectors
-    // (use malloc to create space that is persistent beyond function scope)
-    score->vectors = (struct IntraVector *) malloc(sizeof(struct IntraVector) * score->num_vectors);
-
-    // Load the rest of the intra vectors
-    for (int i=0; i<score->num_vectors; i++){
-        fgets(line, 1024, data);
-        score->vectors[i].x = atof(strtok(line, ","));
-        score->vectors[i].y = atoi(strtok(NULL, ",")); 
-        score->vectors[i].startIndex = atoi(strtok(NULL, ",")); 
-        score->vectors[i].endIndex = atoi(strtok(NULL, ",")); 
-        score->vectors[i].startPitch = atoi(strtok(NULL, ",")); 
-        score->vectors[i].endPitch = atoi(strtok(NULL, ",")); 
-        //strcpy(score->vectors[i].startPitch, strtok(NULL, ",")); 
-        //strcpy(score->vectors[i].endPitch, strtok(NULL, ",")); 
-        score->vectors[i].diatonicDiff = atoi(strtok(NULL, ",")); 
-        score->vectors[i].chromaticDiff = atoi(strtok(NULL, ",")); 
-    }
-
-    return score;
+	fprintf(stderr, "%-5s | %-5s | %-5s | %-5s | %-5s \t|\t", "idx", "x", "y", "start", "end");
+	fprintf(stderr, "\t%-5s | %-5s | %-5s | %-5s | %-5s\n", "idx", "x", "y", "start", "end");
+	for (int i=0; i < length; i++) {
+		fprintf(stderr, "%-5d | x: %.1f | y: %-2d | si: %-2d | ei: %-1d \t|\t", 
+				i, table[i]->patternVec.x, table[i]->patternVec.y, table[i]->patternVec.startIndex, table[i]->patternVec.endIndex);
+		fprintf(stderr, "\t%-5d | x: %.1f | y: %-2d | si: %-2d | ei: %-1d\n", 
+				i, table[i]->targetVec.x, table[i]->targetVec.y, table[i]->targetVec.startIndex, table[i]->targetVec.endIndex);
+	}
 }
 
-struct Score* init_score(char* data) {
-    FILE* stream = fmemopen(data, strlen(data), "r");
-    return load_indexed_score(stream);
+void print_ResultListNode(ResultListNode* node) {
+		printf("[");
+		for (int i=0; i < node->length - 1; i++) {
+				printf("%d, ", node->chain[i]);
+		}
+		printf("%d]", node->chain[node->length - 1]);
 }
 
-void extract_chain(struct KEntry row, int* chain, int* maxTargetWindow, int* transposition, int* diatonicOcc) {
-    int curTargetWindow = row.targetVec.endIndex - row.targetVec.startIndex; 
-    if (curTargetWindow > *maxTargetWindow) *maxTargetWindow = curTargetWindow;
 
-    if ((row.targetVec.chromaticDiff != row.patternVec.chromaticDiff) && (row.targetVec.diatonicDiff == row.patternVec.diatonicDiff)) {
-        *diatonicOcc = 1;
-    }
+bool validIntraVectorMatch(IntraVector patternVec, IntraVector targetVec) {
+		bool height_condition = (patternVec.y == targetVec.y);
+		bool scale_condition = (patternVec.x == 0 && targetVec.x != 0) || (patternVec.x != 0 && targetVec.x == 0);
+		return height_condition && !scale_condition;
+}
 
-    if (row.y == NULL) {
-        chain[0] = row.targetVec.startIndex;
-        chain[1] = row.targetVec.endIndex;
+void pushKTableLinkedList(KTableLinkedList* list, KEntryNode* newNode) {
+		if (list->length == 0) {
+			list->head = newNode;
+			list->tail = newNode;
+			list->length = 1;
+		} else {
+			// Link the list
+			list->tail->next = newNode;
+			// Then advance the tail
+			list->tail = newNode;
+			list->length++;
+		}
+}
 
-        *transposition = row.patternVec.startPitch - row.targetVec.startPitch;
+int compareKTable(const void* x, const void* y){
+		// the caller provides pointers to two list elements
+		// list elements are pointers to nodes, so we cast accordingly and dereference
+    KEntryNode* left = *((KEntryNode**) x);
+    KEntryNode* right = *((KEntryNode**) y);
+    if (left->targetVec.startIndex == right->targetVec.startIndex) {
+        return left->targetVec.endIndex - right->targetVec.endIndex;
     }
     else {
-        chain[row.w + 1] = row.targetVec.endIndex;
-        // Recurse on the backlink
-        extract_chain(*(row.y), chain, maxTargetWindow, transposition, diatonicOcc);
+        return left->targetVec.startIndex - right->targetVec.startIndex;
     }
 }
-
-int extract_chains(struct KEntry** KTables, struct Score* pattern, struct Score* target, int** chains){
-    int num_occs = 0;
-
-    for (int i=0; i < target->num_vectors; i++){
-        int transposition = 0;
-        int maxTargetWindow = 0;
-        int diatonicOcc = 0;
-
-        // Full occurrence will be m - 1 vectors, indexed at 0 ==> check for m - 2
-        if (KTables[pattern->num_notes - 2][i].w != pattern->num_notes - 2) {
-            continue;
-        }
-
-        int* chain = calloc(pattern->num_notes, sizeof(int));
-
-        extract_chain(KTables[pattern->num_notes - 2][i], chain, &maxTargetWindow, &transposition, &diatonicOcc);
-        chains[num_occs] = chain;
-
-        num_occs++;
-    }
-
-    return num_occs;
-}
-
-int compare_K_entries_startIndex(const void* x, const void* y){
-    struct KEntry left = *((struct KEntry*) x);
-    struct KEntry right = *((struct KEntry*) y);
-    if (left.targetVec.startIndex == right.targetVec.startIndex) {
-        return left.targetVec.endIndex - right.targetVec.endIndex;
+int comparePriorityQueue(const void* x, const void* y){
+    KEntryNode* left = ((KEntryNode*) x);
+    KEntryNode* right = ((KEntryNode*) y);
+    if (left->targetVec.endIndex == right->targetVec.endIndex) {
+        return left->targetVec.startIndex < right->targetVec.startIndex;
     }
     else {
-        return left.targetVec.startIndex - right.targetVec.startIndex;
-    }
-}
-int compare_K_entries_endIndex(const void* x, const void* y){
-    struct KEntry left = *((struct KEntry*) x);
-    struct KEntry right = *((struct KEntry*) y);
-    if (left.targetVec.endIndex == right.targetVec.endIndex) {
-        return left.targetVec.startIndex < right.targetVec.startIndex;
-    }
-    else {
-        return left.targetVec.endIndex < right.targetVec.endIndex;
+        return left->targetVec.endIndex < right->targetVec.endIndex;
     }
 }
 
-struct KEntry** init_K_tables(struct Score* pattern, struct Score* target){
+KTable* InitKTables(KTable* KTables, KTableLinkedList* KLists, Score* pattern, Score* target){
+		// The ith KTable holds all vector matches corresponding to pattern vectors starting at index i
+		// So there are a total of (pattern->num_notes - 1) tables, since the final table at index M
+		// will have pattern vectors starting at index M and ending at index M + 1
+		int numTables = pattern->num_notes - 1;
 
-    // Each K table is a list of K entries
-    // We have as many K tables as there are notes in the pattern
-    struct KEntry** KTables = (struct KEntry **) malloc(pattern->num_vectors * sizeof(struct KEntry*));
-
-    for (int i=0; i < pattern->num_notes - 1; i++) {
-				// For now, allocate the max possible size of any K table
-        KTables[i] = (struct KEntry *) calloc(target->num_vectors, sizeof(struct KEntry));
-
-        // For W1 only. Filter out for the single pattern vec which goes from i to i + 1
-        struct IntraVector curPatternVec;
-        for (int m=0; m < pattern->num_vectors; m++){
-            curPatternVec = pattern->vectors[m];
-            if ((curPatternVec.startIndex == i) && (curPatternVec.endIndex == i + 1)){
-                break;
-            }
-        }
-
-        // Find all db vectors which match the Pi -> Pi+1
-        // Could spead up by taking advantage of sorted vectors, or by hashing to y value
-        int numMatching = 0;
+		// Collect the matching vectors into linked lists
+    for (int i=0; i < pattern->num_vectors; i++) {
+				IntraVector curPatternVec = pattern->vectors[i];
+				print_debug_2("matching against pattern vec x: %f, y: %d, startIndex: %d, endIndex: %d\n",
+						curPatternVec.x, curPatternVec.y, curPatternVec.startIndex, curPatternVec.endIndex);
         for(int j=0; j < target->num_vectors; j++){
-            if (target->vectors[j].y == curPatternVec.y){
-                KTables[i][numMatching].targetVec = target->vectors[j];
-                KTables[i][numMatching].patternVec = curPatternVec;
-                KTables[i][numMatching].y = NULL;
-                //KTables[i][numMatching].w = 1;
-                numMatching++;
-            }
+						IntraVector curTargetVec = target->vectors[j];
+
+						print_debug_3("---- considering x: %f, y: %d, startIndex: %d, endIndex: %d\n",
+								curTargetVec.x, curTargetVec.y, curTargetVec.startIndex, curTargetVec.endIndex);
+
+						if (!validIntraVectorMatch(curTargetVec, curPatternVec)) {
+								continue;
+						}
+						print_debug_2("---- matched with x: %f, y: %d, startIndex: %d, endIndex: %d\n",
+								curTargetVec.x, curTargetVec.y, curTargetVec.startIndex, curTargetVec.endIndex);
+
+						KTableLinkedList* curList = &KLists[curPatternVec.startIndex];
+						KEntryNode* node = NewKEntryNode(curPatternVec, curTargetVec);
+						pushKTableLinkedList(curList, node);
         }
-        qsort(KTables[i], numMatching, sizeof(struct KEntry), compare_K_entries_startIndex);
-				KTables[i][numMatching].f = 1;
+		}
+
+		#if W2_DEBUG >= 2
+		for (int i=0; i < numTables; i++) {
+			print_KTableLinkedList(&KLists[i], i);
+		}
+		#endif
+
+		// Collapse the linked lists into sortable tables
+		for (int i=0; i < numTables; i++) {
+				KEntryNode** entries = (KEntryNode**) calloc(KLists[i].length, sizeof(KEntryNode*));
+				if (entries == NULL) {
+					fatal_error("%s", "failed to calloc KEntryNode** entries");
+				}
+				// Traverse linked list
+				KEntryNode* ptr = KLists[i].head;
+				for (int j=0; j < KLists[i].length; j++) {
+						entries[j] = ptr;
+						ptr = ptr->next;
+				}
+        qsort(entries, KLists[i].length, sizeof(KEntryNode*), compareKTable);
+				KTables[i] = entries;
     }
-		//printKTables(KTables, pattern->num_notes - 1);
+
+		#if W2_DEBUG >= 1
+		for (int i=0; i < numTables; i++) {
+			print_KTable(KTables[i], i, KLists[i].length);
+		}
+		#endif
+
     return KTables;
 }
 
-void freeKTables(struct KEntry** tables, int num_tables, int table_length) {
-	for(int i=0; i < num_tables; i++) {
-		for(int j=0; j < table_length; j++) {
-			free(&tables[i][j]);
-			printf("free %d\n", j); fflush(stdout);
-		}
-		printf("free %d\n", i); fflush(stdout);
-		free(tables[i]);
-	}
+void enqueueKTable(PQueue** queues, KTable table, int tableLength) {
+    for (int i=0; i < tableLength; i++) {
+				int index = table[i]->patternVec.endIndex;
+				pqueue_enqueue(queues[index], table[i]);
+    }
 }
 
-void algorithm(struct KEntry** KTables, struct Score* pattern, struct Score* target){
-    // TODO find optimal size of K Tables and queues
-    //struct KEntry*** Queues = malloc(pattern->num_notes * sizeof(struct KEntry**));
-    PQueue** Queues = (PQueue**) malloc(pattern->num_notes * sizeof(PQueue*));
-    for (int i=0; i < pattern->num_notes; i++){
-        Queues[i] = pqueue_new(compare_K_entries_endIndex, target->num_vectors);
+void algorithm(KTable* KTables, KTableLinkedList* KLists, Score* pattern, Score* target){
+		// See above in InitKTables
+		int numKTables = pattern->num_notes - 1;
+
+		// There are effectively as many priority queues as KTables, but the first one is empty
+		// The ith priority queues corresponds to vector pairs whose pattern vector ENDS at index i
+		int numPriorityQueues = pattern->num_notes;
+    PQueue** queues = (PQueue**) malloc(numKTables * sizeof(PQueue*));
+		if (queues == NULL) {
+			fatal_error("%s", "failed to malloc list of priority queues");
+		}
+    for (int i=0; i < numPriorityQueues; i++){
+        queues[i] = pqueue_new(comparePriorityQueue, pattern->num_vectors * target->num_vectors);
     }
 
-    // Initialize the first Queue. These are lists of pointers to KEntries
-    for (int i=0; KTables[0][i].f != 1; i++){
-        // TODO don't add empty KTable rows. find optimal size of KTables and queues..
-        if (KTables[0][i].targetVec.startIndex != 0){
-            pqueue_enqueue(Queues[1], &KTables[0][i]);
-        }
-    }
+    // Push the KTables to priority queues
+		for (int i=0; i < numKTables; i++) {
+			if (KTables[i][0] != NULL) {
+					enqueueKTable(queues, KTables[i], KLists[i].length);
+			}
+		}
 
-
-    struct KEntry* q;
     // For all K tables except the first (already copied to queue) (there are m - 1 Ktables)
-    for (int i=1; i <= pattern->num_notes - 2; i++){
-				debug_print("k table %d\n", i);
-        if (Queues[i]->size > 0){
-            q = (struct KEntry *) pqueue_dequeue(Queues[i]);
-        } else {
-					//continue;
+    for (int i=1; i < pattern->num_notes - 1; i++){
+				print_debug_1("k table %d\n", i);
+
+				if (queues[i]->size == 0) {
+					continue;
 				}
-        
+				KEntryNode* q = (KEntryNode*) pqueue_dequeue(queues[i]);
+
         // For all rows in the current K Table
-        for (int j=0; KTables[i][j].f != 1; j++){
-						//:debug printf("	k row %d\n", j);fflush(stdout);
+        for (int j=0; j < KLists[i].length; j++){
+
             // Advance the possible antecedent until it matches our first postcedent
-            while (q->targetVec.endIndex < KTables[i][j].targetVec.startIndex && Queues[i]->size > 0){
-                q = (struct KEntry *) pqueue_dequeue(Queues[i]);
+            while ((queues[i]->size > 0) && (q->targetVec.endIndex < KTables[i][j]->targetVec.startIndex)) {
+                q = (KEntryNode*) pqueue_dequeue(queues[i]);
             }
 
-            if (q->targetVec.endIndex == KTables[i][j].targetVec.startIndex){
-
-                // For multiple possible antecedents (multiple chains), take the longest one
-                while (((struct KEntry*)Queues[i]->data[0])->targetVec.endIndex == q->targetVec.endIndex && Queues[i]->size > 0){
-                    struct KEntry* r = (struct KEntry*) pqueue_dequeue(Queues[i]);
+            if (q->targetVec.endIndex == KTables[i][j]->targetVec.startIndex){
+								// For multiple possible antecedents (multiple chains), take the longest one
+                while ((queues[i]->size > 0) && (((KEntryNode*)queues[i]->data[0])->targetVec.endIndex == q->targetVec.endIndex)){
+                    KEntryNode* r = (KEntryNode*) pqueue_dequeue(queues[i]);
                     if (r->w >= q->w){
                         q = r;
                     }
                 }
-                KTables[i][j].w = q->w + 1;
-                KTables[i][j].y = q;
-                pqueue_enqueue(Queues[i+1], &KTables[i][j]);
-
-                if (Queues[i]->size > 0) {
-                    q = (struct KEntry*) pqueue_dequeue(Queues[i]);
-                }
+								// Bind antecedent to postcedent
+                KTables[i][j]->w = q->w + 1;
+                KTables[i][j]->y = q;
+								int queueIndex = KTables[i][j]->patternVec.endIndex;
+                pqueue_enqueue(queues[queueIndex], KTables[i][j]);
             }
         }
-        KTables[i][target->num_vectors-1].e = 1;
-        pqueue_enqueue(Queues[i+1], &KTables[i][target->num_vectors-1]);
     }
     for (int i=0; i < pattern->num_notes; i++){
-			pqueue_delete(Queues[i]);
+				pqueue_delete(queues[i]);
 		}
 }
 
-int search(struct Score* pattern, struct Score* target, struct Result* results) {
-	//:debug printf("tables\n"); fflush(stdout);
-	struct KEntry ** KTables = init_K_tables(pattern, target);
-
-	//:debug printf("algorithm\n");fflush(stdout);
-	algorithm(KTables, pattern, target);
-
-	//:debug printf("chain\n");fflush(stdout);
-	results->chains = calloc(target->num_notes, sizeof(int*));
-	results->num_occs = extract_chains(KTables, pattern, target, results->chains);
-
-	//:debug printf("free\n");fflush(stdout);
-
-	return 0;
+void pushResultList(ResultList* list, ResultListNode* newNode) {
+		if (list->length == 0) {
+			list->head = newNode;
+			list->tail = newNode;
+			list->length = 1;
+		} else {
+			// Link the list
+			list->tail->next = newNode;
+			// Then advance the tail
+			list->tail = newNode;
+			list->length++;
+		}
 }
 
-
-void search_return_chains(struct Score* pattern, struct Score* target, struct Result* res){
-
-    struct KEntry** KTables = init_K_tables(pattern, target);
-
-    algorithm(KTables, pattern, target);
-
-    res->chains = calloc(target->num_notes, sizeof(int*));
-    res->num_occs = extract_chains(KTables, pattern, target, res->chains);
-}
-/*
-
-void print_queue(PQueue* queue){
-    for (int i=0; i < queue->size; i++){
-        struct KEntry* q = (struct KEntry *) pqueue_dequeue(queue);
-        printf("targetvec startindex %d\n", q->targetVec.startIndex);
+void extract_chain(KEntryNode* row, int* chain) {
+    if (row->y == NULL) {
+        chain[0] = row->targetVec.startIndex;
+        chain[1] = row->targetVec.endIndex;
+    }
+    else {
+        chain[row->w] = row->targetVec.endIndex;
+        // Recurse on the backlink
+        extract_chain(row->y, chain);
     }
 }
 
-void printScore(struct Score* score){
-    printf("%d notes\n", score->num_notes);
-    printf("%d vectors\n", score->num_vectors);
-    for (int i=0; i < score->num_vectors; i++){
-        printf("x: %f, y: %d, startIndex: %d, endIndex: %d\n", score->vectors[i].x, score->vectors[i].y, score->vectors[i].startIndex, score->vectors[i].endIndex);
+void extract_chains(KTable* KTables, KTableLinkedList* KLists, Score* pattern, Score* target, ResultList* resultList){
+
+    for (int i=0; i < pattern->num_notes - 1; i++) {
+				for (int j=0; j < KLists[i].length; j++) {
+
+						if (KTables[i][j]->w < 3) {
+								continue;
+						}
+						int occLength = KTables[i][j]->w + 1;
+
+						ResultListNode* result = (ResultListNode*) malloc(sizeof(ResultListNode));
+						result->length = occLength;
+
+						result->chain = (int*)calloc(occLength, sizeof(int));
+						if (result->chain == NULL) {
+							fatal_error("%s", "failed to malloc chain of integers");
+						}
+
+						extract_chain(KTables[i][j], result->chain);
+
+						pushResultList(resultList, result);
+				}
     }
 }
 
-*/
+ResultList* search(Score* pattern, Score* target) {
+	print_debug_1("%s\n", "initializing ktables");
+
+	KTableLinkedList* KLists = (KTableLinkedList*) calloc(pattern->num_notes - 1, sizeof(KTableLinkedList));
+	if (KLists == NULL) {
+		fatal_error("%s", "failed to calloc KLists");
+	}
+
+	KTable* KTables = (KTable*)calloc(pattern->num_notes, sizeof(KTable));
+	if (KTables == NULL) {
+		fatal_error("%s", "failed to calloc KTables");
+	}
+
+	InitKTables(KTables, KLists, pattern, target);
+
+	print_debug_1("%s\n", "running algorithm");
+	algorithm(KTables, KLists, pattern, target);
+
+	print_debug_1("%s\n", "extracting chains");
+	ResultList* resultList = (ResultList*) calloc(1, sizeof(ResultList));
+	if (resultList == NULL) {
+		fatal_error("%s", "failed to calloc result list");
+	}
+	extract_chains(KTables, KLists, pattern, target, resultList);
+
+	return resultList;
+}

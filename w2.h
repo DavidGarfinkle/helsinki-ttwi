@@ -1,44 +1,67 @@
-struct Score* initScoreFromVectors(int numNotes, int numVecs, struct IntraVector* vecs);
-struct IntraVector NewIntraVector(float x, int y, int startIndex, int endIndex);
-int search(struct Score* pattern, struct Score* target, struct Result* results);
-void printScore(struct Score* score);
+#ifndef LIB_W2
+#define LIB_W2
 
-//char* search(char* patternStream, char* targetStream);
-void search_return_chains(struct Score* pattern, struct Score* target, struct Result* res);
+#include <stdbool.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <math.h>
+#include "c_pqueue/pqueue.h"
 
-struct Score* init_score(char* data);
-struct Score* init_score_with_length(char* data, int length);
-struct Score* init_score_from_int_array(int num_notes, int num_vectors, int* vector_data);
-struct Score* init_score_from_vectors(int num_notes, int num_vectors, struct IntraVector* vectors);
+#endif
 
-struct Score {
-    struct IntraVector* vectors;
-    int num_notes;
-    int num_vectors;
-};
- 
-struct IntraVector {
+
+typedef struct {
     float x;
     int y;
     int startIndex;
     int endIndex;
-    int startPitch;
-    int endPitch;
-    int diatonicDiff;
-    int chromaticDiff;
-};
+} IntraVector;
 
-struct Result{
-    int** chains;
-    int num_occs;
-    struct KEntry* table;
-};
-
-struct KEntry {
-    struct IntraVector patternVec;
-    struct IntraVector targetVec;
-    float scale;
+typedef struct {
+    IntraVector* vectors;
+    int num_notes;
+    int num_vectors;
+} Score;
+ 
+struct KEntryNode {
+    IntraVector patternVec;
+    IntraVector targetVec;
     int w; // length of occurrence
-    int e;
-    struct KEntry* y; // backlink for building chains
+    struct KEntryNode* y; // backlink for building chains
+		struct KEntryNode* next;
 };
+typedef struct KEntryNode KEntryNode;
+
+typedef struct {
+	KEntryNode* head;
+	KEntryNode* tail;
+	int length;
+} KTableLinkedList;
+
+// K Table is a list of pointers with a sorted order
+// The pointers correspond to elements in a KTableLinkedList 
+typedef KEntryNode** KTable;
+
+typedef struct {
+    int** chains;
+    int length;
+    KTable* table;
+} Result;
+
+struct ResultListNode {
+		int* chain;
+		int length;
+		struct ResultListNode* next;
+};
+typedef struct ResultListNode ResultListNode;
+typedef struct {
+		int length;
+		ResultListNode* head;
+		ResultListNode* tail;
+		ResultListNode* next;
+} ResultList;
+
+extern IntraVector NewIntraVector(float x, int y, int startIndex, int endIndex);
+extern Score* InitScoreFromVectors(int numNotes, int numVecs, IntraVector* vecs);
+extern ResultList* search(Score* pattern, Score* target);
