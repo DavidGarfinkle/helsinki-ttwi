@@ -6,7 +6,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
-#include "c_pqueue/pqueue.h"
+#include "c-generic-pqueue/pqueue.h"
 
 #endif
 
