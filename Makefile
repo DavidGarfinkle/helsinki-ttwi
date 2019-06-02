@@ -18,7 +18,7 @@ libw2.so: w2.o $(PQ_DEP)/pqueue.o
 $(TEST_DIR)/test: libw2.so
 	gcc -g -I. -L. -lw2 -std=c99 $(TEST_DIR)/test.c -o $(TEST_DIR)/test
 
-test: $(TEST_DIR)/test
+test: $(TEST_DIR)/test clean
 	$(TEST_DIR)/test
 
 clean:
