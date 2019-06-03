@@ -123,6 +123,16 @@ void print_ResultListNode(ResultListNode* node) {
 		printf("%d]", node->chain[node->length - 1]);
 }
 
+void print_ResultList(ResultList* results) {
+		ResultListNode *ptr = results->head;
+		printf("total: %d\n", results->length);
+		for (int i=0; i < results->length; i++) {
+				printf("%d: size %d | ", i, ptr->length);
+				print_ResultListNode(ptr);
+				printf("\n");
+				ptr = ptr->next;
+		}
+}
 
 bool validIntraVectorMatch(IntraVector patternVec, IntraVector targetVec) {
 		bool height_condition = (patternVec.y == targetVec.y);
@@ -178,7 +188,7 @@ KTable* InitKTables(KTable* KTables, KTableLinkedList* KLists, Score* pattern, S
 				IntraVector curPatternVec = pattern->vectors[i];
 				print_debug_2("matching against pattern vec x: %f, y: %d, startIndex: %d, endIndex: %d\n",
 						curPatternVec.x, curPatternVec.y, curPatternVec.startIndex, curPatternVec.endIndex);
-        for(int j=0; j < target->num_vectors; j++){
+        for(int j=0; j < target->num_vectors; j++) {
 						IntraVector curTargetVec = target->vectors[j];
 
 						print_debug_3("---- considering x: %f, y: %d, startIndex: %d, endIndex: %d\n",
@@ -234,6 +244,22 @@ void enqueueKTable(PQueue** queues, KTable table, int tableLength) {
     }
 }
 
+PQueue** InitPriorityQueues(int numQueues, int sizeOfQueues) {
+    PQueue** queues = (PQueue**) calloc(numQueues, sizeof(PQueue*));
+		if (queues == NULL) {
+			fatal_error("%s", "failed to malloc list of priority queues");
+		}
+
+    for (int i=0; i < numQueues; i++){
+        queues[i] = pqueue_new(comparePriorityQueue, sizeOfQueues);
+				if (queues[i] == NULL) {
+						fatal_error("failed to malloc priority queue %d\n", i);
+				}
+    }
+
+		return queues;
+}
+
 void algorithm(KTable* KTables, KTableLinkedList* KLists, Score* pattern, Score* target){
 		// See above in InitKTables
 		int numKTables = pattern->num_notes - 1;
@@ -241,25 +267,25 @@ void algorithm(KTable* KTables, KTableLinkedList* KLists, Score* pattern, Score*
 		// There are effectively as many priority queues as KTables, but the first one is empty
 		// The ith priority queues corresponds to vector pairs whose pattern vector ENDS at index i
 		int numPriorityQueues = pattern->num_notes;
-    PQueue** queues = (PQueue**) malloc(numKTables * sizeof(PQueue*));
-		if (queues == NULL) {
-			fatal_error("%s", "failed to malloc list of priority queues");
-		}
-    for (int i=0; i < numPriorityQueues; i++){
-        queues[i] = pqueue_new(comparePriorityQueue, pattern->num_vectors * target->num_vectors);
-    }
+		PQueue** queues = InitPriorityQueues(numPriorityQueues, pattern->num_vectors * target->num_vectors);
 
     // Push the KTables to priority queues
+		print_debug_3("%s\n", "queuing ktables");
 		for (int i=0; i < numKTables; i++) {
-			if (KTables[i][0] != NULL) {
+			if (KTables[i][0] == NULL) {
+					print_debug_3("skipping ktable %d\n", i);
+					continue;
+			} else {
+					print_debug_3("queuing ktable %d of length %d\n", i, KLists[i].length);
 					enqueueKTable(queues, KTables[i], KLists[i].length);
 			}
 		}
 
     // For all K tables except the first (already copied to queue) (there are m - 1 Ktables)
-    for (int i=1; i < pattern->num_notes - 1; i++){
+    for (int i=1; i < numKTables; i++){
 				print_debug_1("k table %d\n", i);
 
+				print_debug_3("priority queue size %zd\n", queues[i]->size);
 				if (queues[i]->size == 0) {
 					continue;
 				}
@@ -289,7 +315,7 @@ void algorithm(KTable* KTables, KTableLinkedList* KLists, Score* pattern, Score*
             }
         }
     }
-    for (int i=0; i < pattern->num_notes; i++){
+    for (int i=0; i < numPriorityQueues; i++){
 				pqueue_delete(queues[i]);
 		}
 }

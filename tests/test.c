@@ -37,17 +37,6 @@ void printIntArray(int* array, int length) {
 		printf("%d]", array[length-1]);
 }
 
-void printResults(ResultList* results) {
-		ResultListNode *ptr = results->head;
-		printf("total: %d\n", results->length);
-		for (int i=0; i < results->length; i++) {
-				printf("%d: size %d | ", i, ptr->length);
-				print_ResultListNode(ptr);
-				printf("\n");
-				ptr = ptr->next;
-		}
-}
-
 int assertExpectedResults(ResultList* results, int** expected, int expectedNumResults, int* expectedResultLengths) {
 		/* Returns index of the first non-matching result */
 
@@ -138,9 +127,9 @@ int main() {
 		};
 		int expectedNumResults[5] = {5, 3, 5, 5, 5};
 				
-		for (int i=0; i < 6; i++) {
+		for (int i=0; i < 1; i++) {
 				ResultList* results = testQuery(queryFileNames[i]);
-				printResults(results);
+				print_ResultList(results);
 				//int status = assertExpectedResults(results, expectedResults[i], expectedNumResults[i], expectedResultLengths[i]);
 				/*
 				if (status != -1) {
