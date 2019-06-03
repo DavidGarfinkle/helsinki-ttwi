@@ -64,3 +64,6 @@ typedef struct {
 extern IntraVector NewIntraVector(float x, int y, int startIndex, int endIndex);
 extern Score* InitScoreFromVectors(int numNotes, int numVecs, IntraVector* vecs);
 extern ResultList* search(Score* pattern, Score* target);
+extern void InitKTables(KTable* KTables,  KTableLinkedList* KLists, Score* pattern, Score* target);
+extern void algorithm(KTable* KTables, KTableLinkedList* KLists, Score* pattern, Score* target);
+extern void extract_chains(KTable* KTables, KTableLinkedList* KLists, Score* pattern, Score* target, ResultList* resultList);

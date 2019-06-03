@@ -177,7 +177,7 @@ int comparePriorityQueue(const void* x, const void* y){
     }
 }
 
-KTable* InitKTables(KTable* KTables, KTableLinkedList* KLists, Score* pattern, Score* target){
+void InitKTables(KTable* KTables, KTableLinkedList* KLists, Score* pattern, Score* target){
 		// The ith KTable holds all vector matches corresponding to pattern vectors starting at index i
 		// So there are a total of (pattern->num_notes - 1) tables, since the final table at index M
 		// will have pattern vectors starting at index M and ending at index M + 1
@@ -233,8 +233,6 @@ KTable* InitKTables(KTable* KTables, KTableLinkedList* KLists, Score* pattern, S
 			print_KTable(KTables[i], i, KLists[i].length);
 		}
 		#endif
-
-    return KTables;
 }
 
 void enqueueKTable(PQueue** queues, KTable table, int tableLength) {
