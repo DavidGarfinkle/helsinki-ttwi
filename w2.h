@@ -10,7 +10,6 @@
 
 #endif
 
-
 typedef struct {
     float x;
     int y;
