@@ -1,6 +1,6 @@
 .PHONY = clean test
 
-all: libw2.so clean
+all: build/libw2.so clean
 
 PQ_DEP = c-generic-pqueue
 TEST_DIR = tests
@@ -12,11 +12,11 @@ $(PQ_DEP)/pqueue.o: $(PQ_DEP)/pqueue.c
 w2.o: w2.c
 	gcc -g w2.c -c -fPIC $(CFLAGS)
 
-libw2.so: w2.o $(PQ_DEP)/pqueue.o
-	ar rc libw2.so w2.o $(PQ_DEP)/pqueue.o
+build/libw2.so: w2.o $(PQ_DEP)/pqueue.o
+	ar rc build/libw2.so w2.o $(PQ_DEP)/pqueue.o
 
-$(TEST_DIR)/test: libw2.so
-	gcc -g -I. -L. -lw2 -std=c99 $(TEST_DIR)/test.c -o $(TEST_DIR)/test
+$(TEST_DIR)/test: build/libw2.so
+	gcc -g -I. -Lbuild -lw2 -std=c99 $(TEST_DIR)/test.c -o $(TEST_DIR)/test
 
 test: $(TEST_DIR)/test clean
 	$(TEST_DIR)/test
