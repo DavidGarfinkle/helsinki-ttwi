@@ -49,7 +49,8 @@ typedef struct {
 } Result;
 
 struct ResultListNode {
-		int* chain;
+        int* patternNotes;
+		int* targetNotes;
 		int length;
 		struct ResultListNode* next;
 };

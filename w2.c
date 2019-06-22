@@ -118,9 +118,9 @@ void print_KTable(KTable table, int num, int length) {
 void print_ResultListNode(ResultListNode* node) {
 		printf("[");
 		for (int i=0; i < node->length - 1; i++) {
-				printf("%d, ", node->chain[i]);
+				printf("%d->%d, ", node->patternNotes[i], node->targetNotes[i]);
 		}
-		printf("%d]", node->chain[node->length - 1]);
+		printf("%d->%d]", node->patternNotes[node->length - 1], node->targetNotes[node->length - 1]);
 }
 
 void print_ResultList(ResultList* results) {
@@ -332,15 +332,18 @@ void pushResultList(ResultList* list, ResultListNode* newNode) {
 		}
 }
 
-void extract_chain(KEntryNode* row, int* chain) {
+void extract_chain(KEntryNode* row, int* patternNotes, int* targetNotes) {
     if (row->y == NULL) {
-        chain[0] = row->targetVec.startIndex;
-        chain[1] = row->targetVec.endIndex;
+        patternNotes[0] = row->patternVec.startIndex;
+        patternNotes[1] = row->patternVec.endIndex;
+        targetNotes[0] = row->targetVec.startIndex;
+        targetNotes[1] = row->targetVec.endIndex;
     }
     else {
-        chain[row->w] = row->targetVec.endIndex;
+        patternNotes[row->w] = row->patternVec.endIndex;
+        targetNotes[row->w] = row->targetVec.endIndex;
         // Recurse on the backlink
-        extract_chain(row->y, chain);
+        extract_chain(row->y, patternNotes, targetNotes);
     }
 }
 
@@ -357,12 +360,13 @@ void extract_chains(KTable* KTables, KTableLinkedList* KLists, Score* pattern, S
 						ResultListNode* result = (ResultListNode*) malloc(sizeof(ResultListNode));
 						result->length = occLength;
 
-						result->chain = (int*)calloc(occLength, sizeof(int));
-						if (result->chain == NULL) {
+						result->patternNotes = (int*)calloc(occLength, sizeof(int));
+						result->targetNotes = (int*)calloc(occLength, sizeof(int));
+						if (result->patternNotes == NULL || result->targetNotes == NULL) {
 							fatal_error("%s", "failed to malloc chain of integers");
 						}
 
-						extract_chain(KTables[i][j], result->chain);
+						extract_chain(KTables[i][j], result->patternNotes, result->targetNotes);
 
 						pushResultList(resultList, result);
 				}
