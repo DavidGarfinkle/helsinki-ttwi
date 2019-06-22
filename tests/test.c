@@ -65,13 +65,13 @@ int assertExpectedResults(ResultList* results, int** expected, int expectedNumRe
 
 				// compare to the expected
 				for (int j=0; j < expectedResultLengths[i]; j++) {
-						if (expected[i][j] != ptr->chain[j]) {
+						if (expected[i][j] != ptr->targetNotes[j]) {
 								printf("expected ");
 								printIntArray(expected[i], expectedResultLengths[i]);
 								printf("\n");
 
 								printf("got ");
-								printIntArray(ptr->chain, ptr->length);
+								printIntArray(ptr->targetNotes, ptr->length);
 								printf("\n");
 								return i;
 						}
@@ -107,6 +107,63 @@ int main() {
 				"tests/query_f.csv"
 		};
 
+
+        int *expected[50] = {
+            (int[]){3, 6, 8, 9},
+            (int[]){3, 6, 8, 11},
+            (int[]){3, 6, 8, 12},
+            (int[]){3, 6, 8, 13},
+            (int[]){3, 6, 8, 16},
+            (int[]){3, 6, 8, 17},
+            (int[]){3, 6, 8, 18},
+            (int[]){3, 6, 8, 20},
+            (int[]){3, 6, 8, 21},
+            (int[]){3, 6, 8, 29},
+            (int[]){3, 6, 8, 31},
+            (int[]){13, 14, 16, 17},
+            (int[]){13, 14, 16, 18},
+            (int[]){13, 14, 16, 20},
+            (int[]){13, 14, 16, 21},
+            (int[]){13, 14, 16, 29},
+            (int[]){13, 14, 16, 31},
+            (int[]){13, 14, 18, 20},
+            (int[]){13, 14, 18, 21},
+            (int[]){13, 14, 18, 29},
+            (int[]){13, 14, 18, 31},
+            (int[]){24, 25, 26, 28},
+            (int[]){21, 27, 29, 31},
+            (int[]){3, 6, 8, 9, 12},
+            (int[]){3, 6, 8, 9, 13},
+            (int[]){3, 6, 8, 9, 16},
+            (int[]){3, 6, 8, 9, 18},
+            (int[]){3, 6, 8, 9, 21},
+            (int[]){3, 6, 8, 9, 29},
+            (int[]){3, 6, 8, 9, 31},
+            (int[]){3, 6, 8, 11, 16},
+            (int[]){3, 6, 8, 11, 18},
+            (int[]){3, 6, 8, 11, 21},
+            (int[]){3, 6, 8, 11, 29},
+            (int[]){3, 6, 8, 11, 31},
+            (int[]){13, 14, 16, 17, 18},
+            (int[]){13, 14, 16, 17, 21},
+            (int[]){13, 14, 16, 17, 29},
+            (int[]){13, 14, 16, 17, 31},
+            (int[]){13, 14, 18, 20, 29},
+            (int[]){13, 14, 18, 20, 31},
+            (int[]){3, 6, 8, 12},
+            (int[]){3, 6, 8, 13},
+            (int[]){3, 6, 8, 21},
+            (int[]){3, 6, 8, 31},
+            (int[]){3, 6, 8, 11, 16, 21},
+            (int[]){3, 6, 8, 11, 16, 31},
+            (int[]){13, 14, 16, 17, 18, 21},
+            (int[]){13, 14, 16, 17, 18, 31},
+            (int[]){13, 14, 18, 20, 29, 31}
+        };
+        int expectedLength[50] = {4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 4, 4, 4, 4, 6, 6, 6, 6, 6};
+
+
+        /*
 		int *expectedResults[][5] = {
 			{
 				(int[]){2, 6, 8, 11, 16, 21},
@@ -126,17 +183,17 @@ int main() {
 				(int[]){5, 5, 5, 5, 5}
 		};
 		int expectedNumResults[5] = {5, 3, 5, 5, 5};
+        */
 				
-		for (int i=0; i < 1; i++) {
-				ResultList* results = testQuery(queryFileNames[i]);
+        int queries_to_try[3] = {0, 2, 4};
+		for (int i=0; i < 3; i++) {
+				ResultList* results = testQuery(queryFileNames[queries_to_try[i]]);
 				print_ResultList(results);
-				//int status = assertExpectedResults(results, expectedResults[i], expectedNumResults[i], expectedResultLengths[i]);
-				/*
+				int status = assertExpectedResults(results, expected, 50, expectedLength);
 				if (status != -1) {
-						printf("FAIL\n"); fflush(stdout);
+						printf("FAIL on result %d\n", status); fflush(stdout);
 						return 1;
 				}
-				*/
 		}
 
 		printf("PASS\n"); fflush(stdout);
