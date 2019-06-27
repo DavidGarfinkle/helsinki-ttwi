@@ -9,6 +9,9 @@ CFLAGS = -std=c99 -Wall -Werror
 $(PQ_DEP)/pqueue.o: $(PQ_DEP)/pqueue.c
 	gcc -g $(PQ_DEP)/pqueue.c -c -fPIC -o $(PQ_DEP)/pqueue.o
 
+search: w2.o
+	gcc -g -I. -Lbuild -lw2 main.c $(CFLAGS) -o $@
+
 w2.o: w2.c
 	gcc -g w2.c -c -fPIC $(CFLAGS)
 
