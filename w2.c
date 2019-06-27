@@ -55,6 +55,36 @@ Score* InitScoreFromVectors(int numNotes, int numVecs, IntraVector* vecs) {
 		return score;
 }
 
+Score* LoadScoreFromFile(FILE* data) {
+		int chunkSize = 1024;
+    char line[chunkSize];
+    Score* score =  malloc(sizeof(Score));
+
+    // Skip the first line which documents the csv headers
+    fgets(line, chunkSize, data);
+    // Get the number of notes (assumed to be on the second line)
+    fgets(line, chunkSize, data);
+    score->num_notes = atoi(line); 
+    // Get the number of vectors (assumed to be on the third line)
+    fgets(line, chunkSize, data);
+    score->num_vectors = atoi(line);
+
+    // Allocate space for storing vectors
+    score->vectors = (IntraVector*) calloc(score->num_vectors, sizeof(IntraVector));
+
+    // Load the rest of the intra vectors
+    for (int i=0; i < score->num_vectors; i++){
+        fgets(line, chunkSize, data);
+        score->vectors[i].x = atof(strtok(line, ","));
+        score->vectors[i].y = atoi(strtok(NULL, ",")); 
+        score->vectors[i].startIndex = atoi(strtok(NULL, ",")); 
+        score->vectors[i].endIndex = atoi(strtok(NULL, ",")); 
+    }
+
+    return score;
+}
+
+
 KEntryNode* NewKEntryNode(IntraVector patternVec, IntraVector targetVec) {
 		KEntryNode* node = (KEntryNode*) malloc(sizeof(KEntryNode));
 		if (node == NULL) {
@@ -67,6 +97,15 @@ KEntryNode* NewKEntryNode(IntraVector patternVec, IntraVector targetVec) {
 		node->next = NULL;
 		return node;
 }
+
+void printIntArray(int* array, int length) {
+		printf("[");
+		for (int i=0; i < length - 1; i++) {
+				printf("%d, ", array[i]);
+		}
+		printf("%d]", array[length-1]);
+}
+
 
 void print_IntraVector(IntraVector vec) {
 	fprintf(stderr, "x: %f, y: %d, startIndex: %d, endIndex: %d",
@@ -85,9 +124,11 @@ void print_KEntryNode(KEntryNode* node) {
 	fprintf(stderr, "\n");
 
 	if (node->y != NULL) {
-		printf("---- y: \n");
+		fprintf(stderr, "---- y: \n");
 		print_KEntryNode(node->y);
 	}
+
+    fflush(stderr);
 }
 
 void print_KTableLinkedList(KTableLinkedList* list, int num) {
@@ -259,35 +300,35 @@ PQueue** InitPriorityQueues(int numQueues, int sizeOfQueues) {
 }
 
 void algorithm(KTable* KTables, KTableLinkedList* KLists, Score* pattern, Score* target){
-		// See above in InitKTables
-		int numKTables = pattern->num_notes - 1;
+    // See above in InitKTables
+    int numKTables = pattern->num_notes - 1;
 
-		// There are effectively as many priority queues as KTables, but the first one is empty
-		// The ith priority queues corresponds to vector pairs whose pattern vector ENDS at index i
-		int numPriorityQueues = pattern->num_notes;
-		PQueue** queues = InitPriorityQueues(numPriorityQueues, pattern->num_vectors * target->num_vectors);
+    // There are effectively as many priority queues as KTables, but the first one is empty
+    // The ith priority queues corresponds to vector pairs whose pattern vector ENDS at index i
+    int numPriorityQueues = pattern->num_notes;
+    PQueue** queues = InitPriorityQueues(numPriorityQueues, pattern->num_vectors * target->num_vectors);
 
     // Push the KTables to priority queues
-		print_debug_3("%s\n", "queuing ktables");
-		for (int i=0; i < numKTables; i++) {
-			if (KTables[i][0] == NULL) {
-					print_debug_3("skipping ktable %d\n", i);
-					continue;
-			} else {
-					print_debug_3("queuing ktable %d of length %d\n", i, KLists[i].length);
-					enqueueKTable(queues, KTables[i], KLists[i].length);
-			}
-		}
+    print_debug_3("%s\n", "queuing ktables");
+    for (int i=0; i < numKTables; i++) {
+        if (KTables[i][0] == NULL) {
+                print_debug_3("skipping ktable %d\n", i);
+                continue;
+        } else {
+                print_debug_3("queuing ktable %d of length %d\n", i, KLists[i].length);
+                enqueueKTable(queues, KTables[i], KLists[i].length);
+        }
+    }
 
     // For all K tables except the first (already copied to queue) (there are m - 1 Ktables)
     for (int i=1; i < numKTables; i++){
-				print_debug_1("k table %d\n", i);
+        print_debug_1("k table %d\n", i);
 
-				print_debug_3("priority queue size %zd\n", queues[i]->size);
-				if (queues[i]->size == 0) {
-					continue;
-				}
-				KEntryNode* q = (KEntryNode*) pqueue_dequeue(queues[i]);
+        print_debug_3("priority queue size %zd\n", queues[i]->size);
+        if (queues[i]->size == 0) {
+            continue;
+        }
+        KEntryNode* q = (KEntryNode*) pqueue_dequeue(queues[i]);
 
         // For all rows in the current K Table
         for (int j=0; j < KLists[i].length; j++){
@@ -298,24 +339,25 @@ void algorithm(KTable* KTables, KTableLinkedList* KLists, Score* pattern, Score*
             }
 
             if (q->targetVec.endIndex == KTables[i][j]->targetVec.startIndex){
-								// For multiple possible antecedents (multiple chains), take the longest one
+                // For multiple possible antecedents (multiple chains), take the longest one
                 while ((queues[i]->size > 0) && (((KEntryNode*)queues[i]->data[0])->targetVec.endIndex == q->targetVec.endIndex)){
                     KEntryNode* r = (KEntryNode*) pqueue_dequeue(queues[i]);
                     if (r->w >= q->w){
                         q = r;
                     }
                 }
-								// Bind antecedent to postcedent
+                // Bind antecedent to postcedent
                 KTables[i][j]->w = q->w + 1;
                 KTables[i][j]->y = q;
-								int queueIndex = KTables[i][j]->patternVec.endIndex;
+
+                int queueIndex = KTables[i][j]->patternVec.endIndex;
                 pqueue_enqueue(queues[queueIndex], KTables[i][j]);
             }
         }
     }
     for (int i=0; i < numPriorityQueues; i++){
-				pqueue_delete(queues[i]);
-		}
+        pqueue_delete(queues[i]);
+    }
 }
 
 void pushResultList(ResultList* list, ResultListNode* newNode) {

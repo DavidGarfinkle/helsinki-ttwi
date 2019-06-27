@@ -1,42 +1,5 @@
 #include <w2.c>
 
-Score* LoadScoreFromFile(FILE* data) {
-		int chunkSize = 1024;
-    char line[chunkSize];
-    Score* score =  malloc(sizeof(Score));
-
-    // Skip the first line which documents the csv headers
-    fgets(line, chunkSize, data);
-    // Get the number of notes (assumed to be on the second line)
-    fgets(line, chunkSize, data);
-    score->num_notes = atoi(line); 
-    // Get the number of vectors (assumed to be on the third line)
-    fgets(line, chunkSize, data);
-    score->num_vectors = atoi(line);
-
-    // Allocate space for storing vectors
-    score->vectors = (IntraVector*) calloc(score->num_vectors, sizeof(IntraVector));
-
-    // Load the rest of the intra vectors
-    for (int i=0; i < score->num_vectors; i++){
-        fgets(line, chunkSize, data);
-        score->vectors[i].x = atof(strtok(line, ","));
-        score->vectors[i].y = atoi(strtok(NULL, ",")); 
-        score->vectors[i].startIndex = atoi(strtok(NULL, ",")); 
-        score->vectors[i].endIndex = atoi(strtok(NULL, ",")); 
-    }
-
-    return score;
-}
-
-void printIntArray(int* array, int length) {
-		printf("[");
-		for (int i=0; i < length - 1; i++) {
-				printf("%d, ", array[i]);
-		}
-		printf("%d]", array[length-1]);
-}
-
 int assertExpectedResults(ResultList* results, int** expected, int expectedNumResults, int* expectedResultLengths) {
 		/* Returns index of the first non-matching result */
 

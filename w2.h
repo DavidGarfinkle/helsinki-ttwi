@@ -62,6 +62,10 @@ typedef struct {
 		ResultListNode* next;
 } ResultList;
 
+void printIntArray(int* array, int length);
+void print_ResultList(ResultList* results);
+Score* LoadScoreFromFile(FILE* data);
+
 extern IntraVector NewIntraVector(float x, int y, int startIndex, int endIndex);
 extern Score* InitScoreFromVectors(int numNotes, int numVecs, IntraVector* vecs);
 extern ResultList* search(Score* pattern, Score* target);
