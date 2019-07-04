@@ -19,7 +19,7 @@ build/libw2.so: w2.o $(PQ_DEP)/pqueue.o
 	ar rc build/libw2.so w2.o $(PQ_DEP)/pqueue.o
 
 build/_w2.cpython-37m-darwin.so: build/libw2.so
-	python3 python-bindings/generate.py
+	python3 python-bindings/w2_cffi.py
 	mv _w2_cffi.cpython-37m-darwin.so build/
 	mv _w2_cffi.c build/
 	mv _w2_cffi.o build/
