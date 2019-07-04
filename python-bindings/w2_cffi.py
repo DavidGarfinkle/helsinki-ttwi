@@ -79,7 +79,7 @@ ffibuilder.set_source("_w2_cffi",
 """
      #include "w2.h"   // the C header of the library
 """,
-     libraries=['w2'], library_dirs=[os.path.join(root_dir, "build")]   # library name, for the linker
+     libraries=['w2'], include_dirs=[root_dir], library_dirs=[os.path.join(root_dir, "build")]   # library name, for the linker
 )
 
 if __name__ == "__main__":
