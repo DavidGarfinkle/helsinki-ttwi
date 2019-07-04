@@ -75,7 +75,7 @@ ffibuilder.cdef("""
 # produce, and some C source code as a string.  This C code needs
 # to make the declarated functions, types and globals available,
 # so it is often just the "#include".
-ffibuilder.set_source("_w2",
+ffibuilder.set_source("_w2_cffi",
 """
      #include "w2.h"   // the C header of the library
 """,
