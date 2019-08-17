@@ -16,6 +16,20 @@
         do { fprintf(stderr, "%s:%d:%s(): " fmt, __FILE__, \
                                 __LINE__, __func__, __VA_ARGS__); exit(1); } while (0)
 
+#define CALLOC_ARR_SIZE 9999999999
+int CUR_CALLOC = 0;
+void** CALLOCARR[CALLOC_ARR_SIZE];
+void* CALLOC(size_t nitems, size_t size) {
+	void* ptr = calloc(nitems, size);
+	CUR_CALLOC++;
+}
+void FREEALL() {
+	for (int i=0; i < CUR_CALLOC; i++) {
+		free(CALLOCARR[i]);
+	}
+	CUR_CALLOC = 0;
+}
+
 int max(int a, int b){
     return (a > b) ? a : b;
 }
@@ -356,6 +370,14 @@ void algorithm(KTable* KTables, KTableLinkedList* KLists, Score* pattern, Score*
         }
     }
     for (int i=0; i < numPriorityQueues; i++){
+				// try to loop throguhd at a
+				for (int j=0; j < queues[i]->size; j++) {
+					//KEntryNode* node = (KEntryNode*) pqueue_dequeue(queues[i]);
+					KEntryNode* node = (KEntryNode*) pqueue_dequeue(queues[i]);
+					printf("freeing %p: ", node); fflush(stdout);
+					print_KEntryNode(node);
+					free(node);
+				}
         pqueue_delete(queues[i]);
     }
 }
