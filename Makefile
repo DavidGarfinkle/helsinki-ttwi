@@ -1,6 +1,6 @@
 .PHONY = clean test
 
-all: build/libw2.so build/_w2.cpython-37m-darwin.so clean
+all: build/libw2.so build/_w2.cpython-37m-x86_64-linux-gnu.so clean
 
 PQ_DEP = c-generic-pqueue
 TEST_DIR = tests
@@ -18,9 +18,9 @@ w2.o: w2.c
 build/libw2.so: w2.o $(PQ_DEP)/pqueue.o
 	ar rc build/libw2.so w2.o $(PQ_DEP)/pqueue.o
 
-build/_w2.cpython-37m-darwin.so: build/libw2.so
+build/_w2.cpython-37m-x86_64-linux-gnu.so: build/libw2.so
 	python3 python-bindings/w2_cffi.py
-	mv _w2_cffi.cpython-37m-darwin.so build/
+	mv _w2_cffi.cpython-37m-x86_64-linux-gnu.so build/
 	mv _w2_cffi.c build/
 	mv _w2_cffi.o build/
 
@@ -34,3 +34,5 @@ clean:
 	rm $(PQ_DEP)/pqueue.o
 	rm w2.o
 	rm build/*.o
+
+# gcc -g -I. -Lbuild -lw2 tests/test.c -o tests/test pqueue.o
